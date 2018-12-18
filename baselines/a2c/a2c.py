@@ -12,6 +12,8 @@ from baselines.common.policies import build_policy
 from baselines.a2c.utils import Scheduler, find_trainable_variables
 from baselines.a2c.runner import Runner
 
+from baselines.common.ICM import ICM
+
 from tensorflow import losses
 
 class Model(object):
@@ -28,7 +30,7 @@ class Model(object):
         save/load():
         - Save load the model
     """
-    def __init__(self, policy, env, nsteps,
+    def __init__(self, policy, env, nsteps, icm,
             ent_coef=0.01, vf_coef=0.5, max_grad_norm=0.5, lr=7e-4,
             alpha=0.99, epsilon=1e-5, total_timesteps=int(80e6), lrschedule='linear'):
 
@@ -75,6 +77,13 @@ class Model(object):
             # Clip the gradients (normalize)
             grads, grad_norm = tf.clip_by_global_norm(grads, max_grad_norm)
         grads = list(zip(grads, params))
+
+        if icm is not None :
+
+            grads = grads + icm.pred_grads_and_vars
+            print("Gradients added ")
+            print("independetly there shape were a2c : {} icm :{} and together {} ".format(np.shape(grads),np.shape(icm.pred_grads_and_vars),
+                np.shape(grads_and_vars)))
         # zip aggregate each gradient with parameters associated
         # For instance zip(ABCD, xyza) => Ax, By, Cz, Da
 
@@ -85,22 +94,44 @@ class Model(object):
 
         lr = Scheduler(v=lr, nvalues=total_timesteps, schedule=lrschedule)
 
-        def train(obs, states, rewards, masks, actions, values):
+        def train(obs, states, rewards, masks, actions, values , icm, next_obs):
             # Here we calculate advantage A(s,a) = R + yV(s') - V(s)
             # rewards = R + yV(s')
             advs = rewards - values
             for step in range(len(obs)):
                 cur_lr = lr.value()
 
-            td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr}
-            if states is not None:
-                td_map[train_model.S] = states
-                td_map[train_model.M] = masks
-            policy_loss, value_loss, policy_entropy, _ = sess.run(
-                [pg_loss, vf_loss, entropy, _train],
-                td_map
-            )
-            return policy_loss, value_loss, policy_entropy
+            if icm is None :
+
+                td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr}
+            else :
+                print("curiosity Td Map ")
+                td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr , 
+                icm.state_:obs, icm.next_state_ : next_obs , icm.action_ : actions , icm.R :rewards }
+
+
+
+            if icm is None :
+                if states is not None:
+                    td_map[train_model.S] = states
+                    td_map[train_model.M] = masks
+                
+                policy_loss, value_loss, policy_entropy, _ = sess.run(
+                    [pg_loss, vf_loss, entropy, _train],
+                    td_map
+                )
+                return policy_loss, value_loss, policy_entropy
+            else :
+                if states is not None:
+                    td_map[train_model.S] = states
+                    td_map[train_model.M] = masks
+                policy_loss, value_loss, policy_entropy,forward_loss , inverse_loss , icm_loss, _ = sess.run(
+                    [pg_loss, vf_loss, entropy, icm.forw_loss , icm.inv_loss, icm.icm_loss ,_train],
+                    td_map
+
+                )
+                return policy_loss, value_loss, policy_entropy,forward_loss , inverse_loss , icm_loss
+
 
 
         self.train = train
@@ -178,6 +209,8 @@ def learn(
                         For instance, 'mlp' network architecture has arguments num_hidden and num_layers.
 
     '''
+    # curiosity = True
+    curiosity = False
 
 
 
@@ -187,14 +220,38 @@ def learn(
     nenvs = env.num_envs
     policy = build_policy(env, network, **network_kwargs)
 
+    temp_ob_space = env.observation_space
+    temp_ac_space = env.action_space
+
+
+    temp_nbatch = nenvs * nsteps
+    temp_nbatch_train = temp_nbatch 
+
+
     # Instantiate the model object (that creates step_model and train_model)
-    model = Model(policy=policy, env=env, nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef,
-        max_grad_norm=max_grad_norm, lr=lr, alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps, lrschedule=lrschedule)
+    if curiosity == False :
+        model = Model(policy=policy, env=env, nsteps=nsteps, icm=None ,ent_coef=ent_coef, vf_coef=vf_coef,
+            max_grad_norm=max_grad_norm, lr=lr, alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps, lrschedule=lrschedule)
+    else :
+        make_icm = lambda: ICM(ob_space = temp_ob_space, ac_space = temp_ac_space, max_grad_norm = max_grad_norm, beta = 0.2, icm_lr_scale = 0.5 )
+        icm = make_icm()
+
+        model = Model(policy=policy, env=env, nsteps=nsteps, icm=icm , ent_coef=ent_coef, vf_coef=vf_coef,
+            max_grad_norm=max_grad_norm, lr=lr, alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps, lrschedule=lrschedule)
+
+        
+
+
     if load_path is not None:
         model.load(load_path)
 
     # Instantiate the runner object
-    runner = Runner(env, model, nsteps=nsteps, gamma=gamma)
+    if curiosity == False:
+        runner = Runner(env, model, nsteps=nsteps, icm=None, gamma=gamma)
+    else :
+        runner = Runner(env, model, nsteps=nsteps, icm=icm, gamma=gamma)
+
+
 
     # Calculate the batch_size
     nbatch = nenvs*nsteps
@@ -204,9 +261,15 @@ def learn(
 
     for update in range(1, total_timesteps//nbatch+1):
         # Get mini batch of experiences
-        obs, states, rewards, masks, actions, values = runner.run()
+        obs, states, rewards, masks, actions, values, next_obs = runner.run()
 
-        policy_loss, value_loss, policy_entropy = model.train(obs, states, rewards, masks, actions, values)
+        if curiosity == False :
+
+           policy_loss, value_loss, policy_entropy = model.train(obs, states, rewards, masks, actions, values, icm=None,next_obs=None)
+        else :
+            policy_loss, value_loss, policy_entropy,forwardLoss , inverseLoss , icm_loss = model.train(obs, states, rewards, masks, actions, values , icm , next_obs)
+
+
         nseconds = time.time()-tstart
 
         # Calculate the fps (frame per second)

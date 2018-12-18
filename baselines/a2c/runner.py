@@ -12,15 +12,19 @@ class Runner(AbstractEnvRunner):
     run():
     - Make a mini batch of experiences
     """
-    def __init__(self, env, model, nsteps=5, gamma=0.99):
-        super().__init__(env=env, model=model, nsteps=nsteps)
+    def __init__(self, env, model, icm, nsteps=5, gamma=0.99):
+        super().__init__(env=env, model=model, icm=icm, nsteps=nsteps)
         self.gamma = gamma
+        self.icm=icm
         self.batch_action_shape = [x if x is not None else -1 for x in model.train_model.action.shape.as_list()]
         self.ob_dtype = model.train_model.X.dtype.as_numpy_dtype
 
     def run(self):
+        #curiosity = True
+        curiosity = False
+
         # We initialize the lists that will contain the mb of experiences
-        mb_obs, mb_rewards, mb_actions, mb_values, mb_dones = [],[],[],[],[]
+        mb_obs, mb_rewards, mb_actions, mb_values, mb_dones, mb_next_states = [],[],[],[],[],[]
         mb_states = self.states
         for n in range(self.nsteps):
             # Given observations, take action and value (V(s))
@@ -33,8 +37,17 @@ class Runner(AbstractEnvRunner):
             mb_values.append(values)
             mb_dones.append(self.dones)
 
+            if curiosity == True:
+                icm_states=self.obs[:]
+
             # Take actions in env and look the results
             obs, rewards, dones, _ = self.env.step(actions)
+            if curiosity == True:
+                icm_next_states = obs[:]
+                rewards = self.icm.calculate_intrinsic_reward(icm_states,icm_next_states,actions)
+                
+
+            mb_next_states.append(np.copy(obs))
             self.states = states
             self.dones = dones
             for n, done in enumerate(dones):
@@ -46,6 +59,7 @@ class Runner(AbstractEnvRunner):
 
         # Batch of steps to batch of rollouts
         mb_obs = np.asarray(mb_obs, dtype=self.ob_dtype).swapaxes(1, 0).reshape(self.batch_ob_shape)
+        mb_next_states = np.asarray(mb_next_states , dtype=self.ob_dtype).swapaxes(1,0).reshape(self.batch_ob_shape)
         mb_rewards = np.asarray(mb_rewards, dtype=np.float32).swapaxes(1, 0)
         mb_actions = np.asarray(mb_actions, dtype=self.model.train_model.action.dtype.name).swapaxes(1, 0)
         mb_values = np.asarray(mb_values, dtype=np.float32).swapaxes(1, 0)
@@ -72,4 +86,4 @@ class Runner(AbstractEnvRunner):
         mb_rewards = mb_rewards.flatten()
         mb_values = mb_values.flatten()
         mb_masks = mb_masks.flatten()
-        return mb_obs, mb_states, mb_rewards, mb_masks, mb_actions, mb_values
+        return mb_obs, mb_states, mb_rewards, mb_masks, mb_actions, mb_values, mb_next_states
