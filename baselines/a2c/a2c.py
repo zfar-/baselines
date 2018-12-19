@@ -286,7 +286,7 @@ def learn(
             logger.record_tabular("fps", fps)
             logger.record_tabular("policy_entropy", float(policy_entropy))
             logger.record_tabular("value_loss", float(value_loss))
-            if curiosity == True :
+            # if curiosity == True :
                 # logger.record_tabular("forwardLoss", float(forwardLoss))
                 # logger.record_tabular("inverseLoss", float(inverseLoss))
                 # logger.record_tabular("icm Loss", float(icm_loss))
