@@ -15,6 +15,7 @@ from baselines.a2c.runner import Runner
 from baselines.common.ICM import ICM
 
 from tensorflow import losses
+import numpy as np
 
 class Model(object):
 
@@ -81,9 +82,9 @@ class Model(object):
         if icm is not None :
 
             grads = grads + icm.pred_grads_and_vars
-            print("Gradients added ")
-            print("independetly there shape were a2c : {} icm :{} and together {} ".format(np.shape(grads),np.shape(icm.pred_grads_and_vars),
-                np.shape(grads_and_vars)))
+            # print("Gradients added ")
+            # print("independetly there shape were a2c : {} icm :{} and together {} ".format(np.shape(grads),np.shape(icm.pred_grads_and_vars),
+                # np.shape(grads_and_vars)))
         # zip aggregate each gradient with parameters associated
         # For instance zip(ABCD, xyza) => Ax, By, Cz, Da
 
@@ -105,7 +106,7 @@ class Model(object):
 
                 td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr}
             else :
-                print("curiosity Td Map ")
+                # print("curiosity Td Map ")
                 td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr , 
                 icm.state_:obs, icm.next_state_ : next_obs , icm.action_ : actions , icm.R :rewards }
 
@@ -209,8 +210,8 @@ def learn(
                         For instance, 'mlp' network architecture has arguments num_hidden and num_layers.
 
     '''
-    # curiosity = True
-    curiosity = False
+    curiosity = True
+    # curiosity = False
 
 
 
@@ -233,6 +234,7 @@ def learn(
         model = Model(policy=policy, env=env, nsteps=nsteps, icm=None ,ent_coef=ent_coef, vf_coef=vf_coef,
             max_grad_norm=max_grad_norm, lr=lr, alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps, lrschedule=lrschedule)
     else :
+        print("Called curiosity model")
         make_icm = lambda: ICM(ob_space = temp_ob_space, ac_space = temp_ac_space, max_grad_norm = max_grad_norm, beta = 0.2, icm_lr_scale = 0.5 )
         icm = make_icm()
 
@@ -249,6 +251,7 @@ def learn(
     if curiosity == False:
         runner = Runner(env, model, nsteps=nsteps, icm=None, gamma=gamma)
     else :
+        print("Called curiosity Runner")
         runner = Runner(env, model, nsteps=nsteps, icm=icm, gamma=gamma)
 
 
