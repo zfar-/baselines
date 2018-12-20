@@ -43,18 +43,18 @@ class Runner(AbstractEnvRunner):
 
             # Take actions in env and look the results
             obs, rewards, dones, _ = self.env.step(actions)
-            print("received Rewards ",rewards)
+            # print("received Rewards ",rewards)
             if curiosity == True:
                 icm_next_states = obs[:]
                 icm_rewards = self.icm.calculate_intrinsic_reward(icm_states,icm_next_states,actions)
-                print("intrinsic Reward : ",icm_rewards)
+                # print("intrinsic Reward : ",icm_rewards)
                 icm_rewards = np.clip(icm_rewards,-constants['REWARD_CLIP'], +constants['REWARD_CLIP'])
             
                 # print("icm _ rewards : ",icm_rewards)
             
 
                 rewards = icm_rewards + rewards
-            print("calculated rewards ",rewards)
+            # print("calculated rewards ",rewards)
                 
 
             mb_next_states.append(np.copy(obs))

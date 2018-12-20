@@ -275,7 +275,7 @@ def learn(
 
         nseconds = time.time()-tstart
 
-        print("icm loss :" , np.mean(icm_loss))
+        # print("icm loss :" , np.mean(icm_loss))
 
         # Calculate the fps (frame per second)
         fps = int((update*nbatch)/nseconds)
