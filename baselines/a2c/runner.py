@@ -53,7 +53,7 @@ class Runner(AbstractEnvRunner):
                 # print("icm _ rewards : ",icm_rewards)
             
 
-                rewards = icm_rewards + rewards
+                rewards = icm_rewards #+ rewards
             # print("calculated rewards ",rewards)
                 
 
