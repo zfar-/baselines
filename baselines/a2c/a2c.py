@@ -275,6 +275,8 @@ def learn(
 
         nseconds = time.time()-tstart
 
+        print("icm loss :" , np.mean(icm_loss))
+
         # Calculate the fps (frame per second)
         fps = int((update*nbatch)/nseconds)
         if update % log_interval == 0 or update == 1:
@@ -286,10 +288,10 @@ def learn(
             logger.record_tabular("fps", fps)
             logger.record_tabular("policy_entropy", float(policy_entropy))
             logger.record_tabular("value_loss", float(value_loss))
-            # if curiosity == True :
+            if curiosity == True :
                 # logger.record_tabular("forwardLoss", float(forwardLoss))
                 # logger.record_tabular("inverseLoss", float(inverseLoss))
-                # logger.record_tabular("icm Loss", float(icm_loss))
+                logger.record_tabular("icm Loss", float(np.mean(icm_loss)))
 
             logger.record_tabular("explained_variance", float(ev))
             logger.dump_tabular()

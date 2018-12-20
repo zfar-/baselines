@@ -1,6 +1,7 @@
 import numpy as np
 from baselines.a2c.utils import discount_with_dones
 from baselines.common.runners import AbstractEnvRunner
+from baselines.common.constants import constants
 
 class Runner(AbstractEnvRunner):
     """
@@ -42,9 +43,18 @@ class Runner(AbstractEnvRunner):
 
             # Take actions in env and look the results
             obs, rewards, dones, _ = self.env.step(actions)
+            print("received Rewards ",rewards)
             if curiosity == True:
                 icm_next_states = obs[:]
-                rewards = self.icm.calculate_intrinsic_reward(icm_states,icm_next_states,actions)
+                icm_rewards = self.icm.calculate_intrinsic_reward(icm_states,icm_next_states,actions)
+                print("intrinsic Reward : ",icm_rewards)
+                icm_rewards = np.clip(icm_rewards,-constants['REWARD_CLIP'], +constants['REWARD_CLIP'])
+            
+                # print("icm _ rewards : ",icm_rewards)
+            
+
+                rewards = icm_rewards + rewards
+            print("calculated rewards ",rewards)
                 
 
             mb_next_states.append(np.copy(obs))
@@ -68,32 +78,32 @@ class Runner(AbstractEnvRunner):
         mb_dones = mb_dones[:, 1:]
 
 
-        if curiosity == True :
-            if self.gamma > 0.0:
-                # Discount/bootstrap off value fn
-                last_values = self.model.value(self.obs, S=self.states, M=self.dones).tolist()
-                for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
-                    rewards = rewards.tolist()
-                    dones = dones.tolist()
-                    # if dones[-1] == 0:
+        # if curiosity == True :
+        #     if self.gamma > 0.0:
+        #         # Discount/bootstrap off value fn
+        #         last_values = self.model.value(self.obs, S=self.states, M=self.dones).tolist()
+        #         for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
+        #             rewards = rewards.tolist()
+        #             dones = dones.tolist()
+        #             # if dones[-1] == 0:
+        #             rewards = discount_with_dones(rewards+[value], dones+[0], self.gamma)[:-1]
+        #             # else:
+        #             # rewards = discount_with_dones(rewards, dones, self.gamma)
+
+        #             mb_rewards[n] = rewards
+        # # else :    
+        if self.gamma > 0.0:
+            # Discount/bootstrap off value fn
+            last_values = self.model.value(self.obs, S=self.states, M=self.dones).tolist()
+            for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
+                rewards = rewards.tolist()
+                dones = dones.tolist()
+                if dones[-1] == 0:
                     rewards = discount_with_dones(rewards+[value], dones+[0], self.gamma)[:-1]
-                    # else:
-                    # rewards = discount_with_dones(rewards, dones, self.gamma)
+                else:
+                    rewards = discount_with_dones(rewards, dones, self.gamma)
 
-                    mb_rewards[n] = rewards
-        else :    
-            if self.gamma > 0.0:
-                # Discount/bootstrap off value fn
-                last_values = self.model.value(self.obs, S=self.states, M=self.dones).tolist()
-                for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
-                    rewards = rewards.tolist()
-                    dones = dones.tolist()
-                    if dones[-1] == 0:
-                        rewards = discount_with_dones(rewards+[value], dones+[0], self.gamma)[:-1]
-                    else:
-                        rewards = discount_with_dones(rewards, dones, self.gamma)
-
-                    mb_rewards[n] = rewards
+                mb_rewards[n] = rewards
 
         mb_actions = mb_actions.reshape(self.batch_action_shape)
 
