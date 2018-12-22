@@ -34,7 +34,7 @@ class ICM(object):
         self.state_ = phi_state = tf.placeholder(tf.float32, [None, *input_shape], name="icm_state")
         self.next_state_ = phi_next_state =  tf.placeholder(tf.float32, [None, *input_shape], name="icm_next_state")
         self.action_ = action = tf.placeholder(tf.float32, [None], name="icm_action")
-        self.R = rewards = tf.placeholder(tf.float32, shape=[None], name="maxR")
+        # self.R = rewards = tf.placeholder(tf.float32, shape=[None], name="maxR")
 
 
         with tf.variable_scope('icm_model'):
@@ -68,7 +68,7 @@ class ICM(object):
         # Foward Loss
         # LF = 1/2 || pred_phi_next_state - phi_next_state ||
         # TODO 0.5 * ?
-        self.forw_loss = tf.reduce_mean(tf.square(tf.subtract(pred_phi_next_state, phi_next_state)) , axis=-1,name="forward_loss")
+        self.forw_loss = tf.reduce_mean(tf.square(tf.subtract(pred_phi_next_state, phi_next_state))  , name="forward_loss")
 
         # Todo predictor lr scale ?
         # ICM_LOSS = [(1 - beta) * LI + beta * LF ] * Predictor_Lr_scale
@@ -101,21 +101,21 @@ class ICM(object):
 
 
         # print("\n\nTrainable variables \n ",icm_params)
-        # 2. Build our trainer
-        self.icm_trainer = MpiAdamOptimizer(MPI.COMM_WORLD, learning_rate=1e-4, epsilon=1e-5)
-        # 3. Calculate the gradients
-        icm_grads_and_var = self.icm_trainer.compute_gradients(self.icm_loss, self.icm_params)
-        # t_grads_and_var = tf.gradients()
-        icm_grads, icm_var = zip(*icm_grads_and_var)
+        # # 2. Build our trainer
+        # self.icm_trainer = MpiAdamOptimizer(MPI.COMM_WORLD, learning_rate=1e-4, epsilon=1e-5)
+        # # 3. Calculate the gradients
+        # icm_grads_and_var = self.icm_trainer.compute_gradients(self.icm_loss, self.icm_params)
+        # # t_grads_and_var = tf.gradients()
+        # icm_grads, icm_var = zip(*icm_grads_and_var)
 
-        if max_grad_norm is not None:
-            # Clip the gradients (normalize)
-            icm_grads, icm__grad_norm = tf.clip_by_global_norm(icm_grads, max_grad_norm)
-        icm_grads_and_var= list(zip(icm_grads, icm_var))
-        # zip aggregate each gradient with parameters associated
-        # For instance zip(ABCD, xyza) => Ax, By, Cz, Da
+        # if max_grad_norm is not None:
+        #     # Clip the gradients (normalize)
+        #     icm_grads, icm__grad_norm = tf.clip_by_global_norm(icm_grads, max_grad_norm)
+        # icm_grads_and_var= list(zip(icm_grads, icm_var))
+        # # zip aggregate each gradient with parameters associated
+        # # For instance zip(ABCD, xyza) => Ax, By, Cz, Da
 
-        self._icm_train = self.icm_trainer.apply_gradients(icm_grads_and_var)
+        # self._icm_train = self.icm_trainer.apply_gradients(icm_grads_and_var)
 
 
 
@@ -219,9 +219,9 @@ class ICM(object):
         # Return intrinsic reward
         return error
 
-    def train_curiosity_model(self, states , next_states , actions , rewards):
+    def train_curiosity_model(self, states , next_states , actions):# , rewards):
         sess = tf.get_default_session()
-        feed = {self.state_: states , self.next_state_ : next_states , self.action_ : actions, self.R :rewards }
+        feed = {self.state_: states , self.next_state_ : next_states , self.action_ : actions }#, self.R :rewards }
 
         return sess.run((self.forw_loss, self.inv_loss, self.icm_loss, self._icm_train), feed_dict = feed)
         # pass

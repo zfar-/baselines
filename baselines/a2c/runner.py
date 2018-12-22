@@ -39,21 +39,33 @@ class Runner(AbstractEnvRunner):
             mb_dones.append(self.dones)
 
             if curiosity == True:
-                icm_states=self.obs[:]
+                icm_states=self.obs
 
             # Take actions in env and look the results
             obs, rewards, dones, _ = self.env.step(actions)
+            # print("received Rewards from step function ")
+
             # print("received Rewards ",rewards)
             if curiosity == True:
-                icm_next_states = obs[:]
+                icm_next_states = obs
+
                 icm_rewards = self.icm.calculate_intrinsic_reward(icm_states,icm_next_states,actions)
+                icm_rewards = [icm_rewards] * len(rewards)
+
+                # icm_rewards = icm_rewards * 2
                 # print("intrinsic Reward : ",icm_rewards)
-                icm_rewards = np.clip(icm_rewards,-constants['REWARD_CLIP'], +constants['REWARD_CLIP'])
+                # icm_rewards = np.clip(icm_rewards,-constants['REWARD_CLIP'], constants['REWARD_CLIP'])
             
                 # print("icm _ rewards : ",icm_rewards)
             
 
+                
                 rewards = icm_rewards + rewards
+                # print("Rewards icm {} , commulative reward {} ".format(icm_rewards , rewards))
+                
+                rewards = np.clip(rewards,-constants['REWARD_CLIP'], +constants['REWARD_CLIP'])
+                # print("icm rewards ", rewards)
+            
             # print("calculated rewards ",rewards)
                 
 
@@ -77,6 +89,12 @@ class Runner(AbstractEnvRunner):
         mb_masks = mb_dones[:, :-1]
         mb_dones = mb_dones[:, 1:]
 
+        # print("Merged things obs {} rewards {} actions {} dones {}".
+            # format(np.shape(mb_obs) , np.shape(mb_rewards) , np.shape(mb_actions) , np.shape(mb_dones)))
+
+
+
+
 
         # if curiosity == True :
         #     if self.gamma > 0.0:
@@ -86,12 +104,17 @@ class Runner(AbstractEnvRunner):
         #             rewards = rewards.tolist()
         #             dones = dones.tolist()
         #             # if dones[-1] == 0:
-        #             rewards = discount_with_dones(rewards+[value], dones+[0], self.gamma)[:-1]
+        #             # rewards = discount_with_dones(rewards+[value], dones+[0], self.gamma)[:-1]
         #             # else:
         #             # rewards = discount_with_dones(rewards, dones, self.gamma)
 
         #             mb_rewards[n] = rewards
-        # # else :    
+        # else :    
+        # print(" Before discount_with_dones ")
+        # print("Rewards " , mb_rewards)
+
+        # print("Before rewards and values ")
+        # print("Reward {} values {} ".format(mb_rewards , mb_values))
         if self.gamma > 0.0:
             # Discount/bootstrap off value fn
             last_values = self.model.value(self.obs, S=self.states, M=self.dones).tolist()
@@ -105,9 +128,20 @@ class Runner(AbstractEnvRunner):
 
                 mb_rewards[n] = rewards
 
+
+        # print(" After discount_with_dones ")
+        # print("Rewards " , mb_rewards)
+
         mb_actions = mb_actions.reshape(self.batch_action_shape)
 
         mb_rewards = mb_rewards.flatten()
         mb_values = mb_values.flatten()
         mb_masks = mb_masks.flatten()
+
+        # print("Flatten rewards and values ")
+        # print("Reward {} values {} ".format(mb_rewards , mb_values))
+
+        # print("Merged things obs {} rewards {} actions {} masks {}".
+            # format(np.shape(mb_obs) , np.shape(mb_rewards) , np.shape(mb_actions) , np.shape(mb_masks)))
+
         return mb_obs, mb_states, mb_rewards, mb_masks, mb_actions, mb_values, mb_next_states

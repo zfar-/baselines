@@ -99,6 +99,17 @@ class Model(object):
             # Here we calculate advantage A(s,a) = R + yV(s') - V(s)
             # rewards = R + yV(s')
             advs = rewards - values
+            # print("On train shapes are  ")
+            # print(" obs {} states {} rewards {} masks {} actions {} values {} ".
+                # format(np.shape(obs) , np.shape(states) , np.shape(rewards) , np.shape(masks) ,np.shape(actions) ,
+                # np.shape(values) ))
+            # print("Received Advantage {} rewards {} values {}".format(
+                # advs , rewards , values) )
+
+           
+            # print("advantage reward and values shape ")
+            # print("advs {} , rewards shape {} , values {}".format(advs , np.shape(rewards) , values))
+
             for step in range(len(obs)):
                 cur_lr = lr.value()
 
@@ -108,7 +119,7 @@ class Model(object):
             else :
                 # print("curiosity Td Map ")
                 td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr , 
-                icm.state_:obs, icm.next_state_ : next_obs , icm.action_ : actions , icm.R :rewards }
+                icm.state_:obs, icm.next_state_ : next_obs , icm.action_ : actions }# , icm.R :rewards }
 
 
 
@@ -272,6 +283,10 @@ def learn(
         else :
             policy_loss, value_loss, policy_entropy,forwardLoss , inverseLoss , icm_loss = model.train(obs, states, rewards, masks, actions, values , icm , next_obs)
 
+            # print("Shape of ")
+            # print( "policy_loss {}, value_loss {}, policy_entropy {},forwardLoss {} , inverseLoss {}, icm_loss {}".
+                # format(np.shape(policy_loss) , np.shape(value_loss) , np.shape(policy_entropy) , np.shape(forwardLoss) , np.shape(inverseLoss), np.shape(icm_loss)))
+
 
         nseconds = time.time()-tstart
 
@@ -291,7 +306,7 @@ def learn(
             if curiosity == True :
                 # logger.record_tabular("forwardLoss", float(forwardLoss))
                 # logger.record_tabular("inverseLoss", float(inverseLoss))
-                logger.record_tabular("icm Loss", float(np.mean(icm_loss)))
+                logger.record_tabular("icm Loss", float(icm_loss))
 
             logger.record_tabular("explained_variance", float(ev))
             logger.dump_tabular()
