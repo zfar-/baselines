@@ -60,7 +60,7 @@ class Runner(AbstractEnvRunner):
             
 
                 
-                rewards = icm_rewards + rewards
+                rewards = icm_rewards  #+ rewards
                 # print("Rewards icm {} , commulative reward {} ".format(icm_rewards , rewards))
                 
                 rewards = np.clip(rewards,-constants['REWARD_CLIP'], +constants['REWARD_CLIP'])
