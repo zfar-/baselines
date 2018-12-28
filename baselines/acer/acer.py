@@ -58,7 +58,7 @@ def q_retrace(R, D, q_i, v, rho_i, nenvs, nsteps, gamma):
 class Model(object):
     def __init__(self, policy, ob_space, ac_space, nenvs, nsteps, ent_coef, q_coef, gamma, max_grad_norm, lr,
                  rprop_alpha, rprop_epsilon, total_timesteps, lrschedule,
-                 c, trust_region, alpha, delta):
+                 c, trust_region, alpha, delta, icm ):
 
         sess = get_session()
         nact = ac_space.n
@@ -180,6 +180,13 @@ class Model(object):
         if max_grad_norm is not None:
             grads, norm_grads = tf.clip_by_global_norm(grads, max_grad_norm)
         grads = list(zip(grads, params))
+
+        if icm is not None :
+
+            grads = grads + icm.pred_grads_and_vars
+
+
+
         trainer = tf.train.RMSPropOptimizer(learning_rate=LR, decay=rprop_alpha, epsilon=rprop_epsilon)
         _opt_op = trainer.apply_gradients(grads)
 
@@ -190,17 +197,25 @@ class Model(object):
         lr = Scheduler(v=lr, nvalues=total_timesteps, schedule=lrschedule)
 
         # Ops/Summaries to run, and their names for logging
-        run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads]
-        names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
-                     'norm_grads']
-        if trust_region:
-            run_ops = run_ops + [norm_grads_q, norm_grads_policy, avg_norm_grads_f, avg_norm_k, avg_norm_g, avg_norm_k_dot_g,
-                                 avg_norm_adj]
-            names_ops = names_ops + ['norm_grads_q', 'norm_grads_policy', 'avg_norm_grads_f', 'avg_norm_k', 'avg_norm_g',
-                                     'avg_norm_k_dot_g', 'avg_norm_adj']
+        
+        if icm is not None :
+
+            if trust_region:
+                run_ops = run_ops + [norm_grads_q, norm_grads_policy, avg_norm_grads_f, avg_norm_k, avg_norm_g, avg_norm_k_dot_g,
+                                     avg_norm_adj , icm.forw_loss , icm.inv_loss, icm.icm_loss ]
+                names_ops = names_ops + ['norm_grads_q', 'norm_grads_policy', 'avg_norm_grads_f', 'avg_norm_k', 'avg_norm_g',
+                                         'avg_norm_k_dot_g', 'avg_norm_adj' , 'icm.forw_loss' , 'icm.inv_loss', 'icm.icm_loss' ]
+        else :
+            if trust_region:
+                run_ops = run_ops + [norm_grads_q, norm_grads_policy, avg_norm_grads_f, avg_norm_k, avg_norm_g, avg_norm_k_dot_g,
+                                     avg_norm_adj  ]
+                names_ops = names_ops + ['norm_grads_q', 'norm_grads_policy', 'avg_norm_grads_f', 'avg_norm_k', 'avg_norm_g',
+                                         'avg_norm_k_dot_g', 'avg_norm_adj' ]
+
 
         def train(obs, actions, rewards, dones, mus, states, masks, steps):
             cur_lr = lr.value_steps(steps)
+            
             td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr}
             if states is not None:
                 td_map[train_model.S] = states
@@ -227,7 +242,7 @@ class Model(object):
 
 
 class Acer():
-    def __init__(self, runner, model, buffer, log_interval):
+    def __init__(self, runner, model,  ,buffer, log_interval):
         self.runner = runner
         self.model = model
         self.buffer = buffer
@@ -236,16 +251,22 @@ class Acer():
         self.episode_stats = EpisodeStats(runner.nsteps, runner.nenv)
         self.steps = None
 
-    def call(self, on_policy):
+    def call(self, curiosity , icm, on_policy):
         runner, model, buffer, steps = self.runner, self.model, self.buffer, self.steps
         if on_policy:
-            enc_obs, obs, actions, rewards, mus, dones, masks = runner.run()
+            # if its not empty that next_state is contain states
+            # print("\n\n\n !!! its on policy !!! \n\n\n") 
+
+            enc_obs, enc_next_obs , obs, actions, rewards, mus, dones, masks, next_states, icm_actions , icm_rewards = runner.run()
+            
             self.episode_stats.feed(rewards, dones)
             if buffer is not None:
-                buffer.put(enc_obs, actions, rewards, mus, dones, masks)
+                buffer.put(enc_obs, enc_next_obs ,actions, rewards, mus, dones, masks, icm_actions , icm_rewards)
         else:
             # get obs, actions, rewards, mus, dones from buffer.
-            obs, actions, rewards, mus, dones, masks = buffer.get()
+            # print("\n\n~~~~ now its off Policy ~~~\n\n")
+            obs, next_obs ,actions, rewards, mus, dones, masks, icm_actions, icm_rewards = buffer.get()
+
 
 
         # reshape stuff correctly
@@ -256,7 +277,7 @@ class Acer():
         dones = dones.reshape([runner.nbatch])
         masks = masks.reshape([runner.batch_ob_shape[0]])
 
-        names_ops, values_ops = model.train(obs, actions, rewards, dones, mus, model.initial_state, masks, steps)
+        names_ops, values_ops = model.train(obs, actions, rewards, dones, mus, model.initial_state, masks, steps , icm )
 
         if on_policy and (int(steps/runner.nbatch) % self.log_interval == 0):
             logger.record_tabular("total_timesteps", steps)
@@ -340,6 +361,9 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
 
     '''
 
+    # curiosity = True
+    curiosity = False
+
     print("Running Acer Simple")
     print(locals())
     set_global_seeds(seed)
@@ -351,14 +375,52 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
     ob_space = env.observation_space
     ac_space = env.action_space
 
-    nstack = env.nstack
-    model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nenvs=nenvs, nsteps=nsteps,
-                  ent_coef=ent_coef, q_coef=q_coef, gamma=gamma,
-                  max_grad_norm=max_grad_norm, lr=lr, rprop_alpha=rprop_alpha, rprop_epsilon=rprop_epsilon,
-                  total_timesteps=total_timesteps, lrschedule=lrschedule, c=c,
-                  trust_region=trust_region, alpha=alpha, delta=delta)
 
-    runner = Runner(env=env, model=model, nsteps=nsteps)
+    # Curiosity Variables 
+    temp_ob_space = ob_space
+    temp_ac_space = ac_space
+    temp_nbatch = nenvs * nsteps 
+    temp_nbatch_train = temp_nbatch 
+
+
+
+    if curiosity == True :
+        make_icm = lambda: ICM(ob_space = temp_ob_space, ac_space = temp_ac_space, max_grad_norm = max_grad_norm, beta = 0.2, icm_lr_scale = 0.5 )
+        icm = make_icm()
+    else :
+        icm = None
+
+
+    if curiosity == False :
+        # print("Runner called without ICM ")
+        runner = Runner(env=env, model=model, nsteps=nsteps , icm = None)
+    else :
+        # print("Runner for ICM called ")
+        runner = Runner(env = env , model = model , nsteps = nsteps , icm= icm)
+
+
+
+
+    nstack = env.nstack
+    
+    if curiosity == False :
+
+        model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nenvs=nenvs, nsteps=nsteps,
+                      ent_coef=ent_coef, q_coef=q_coef, gamma=gamma,
+                      max_grad_norm=max_grad_norm, lr=lr, rprop_alpha=rprop_alpha, rprop_epsilon=rprop_epsilon,
+                      total_timesteps=total_timesteps, lrschedule=lrschedule, c=c,
+                      trust_region=trust_region, alpha=alpha, delta=delta , icm = None)
+    else :
+
+        model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nenvs=nenvs, nsteps=nsteps,
+                      ent_coef=ent_coef, q_coef=q_coef, gamma=gamma,
+                      max_grad_norm=max_grad_norm, lr=lr, rprop_alpha=rprop_alpha, rprop_epsilon=rprop_epsilon,
+                      total_timesteps=total_timesteps, lrschedule=lrschedule, c=c,
+                      trust_region=trust_region, alpha=alpha, delta=delta , icm = icm)
+
+
+
+    
     if replay_ratio > 0:
         buffer = Buffer(env=env, nsteps=nsteps, size=buffer_size)
     else:
@@ -368,7 +430,7 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
     acer.tstart = time.time()
 
     for acer.steps in range(0, total_timesteps, nbatch): #nbatch samples, 1 on_policy call and multiple off-policy calls
-        acer.call(on_policy=True)
+        acer.call( curiosity , icm ,  on_policy=True)
         if replay_ratio > 0 and buffer.has_atleast(replay_start):
             n = np.random.poisson(replay_ratio)
             for _ in range(n):

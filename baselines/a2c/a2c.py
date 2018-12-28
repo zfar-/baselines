@@ -39,6 +39,8 @@ class Model(object):
         nenvs = env.num_envs
         nbatch = nenvs*nsteps
 
+        print("This is Icm in Model Init function " , type(icm))
+
 
         with tf.variable_scope('a2c_model', reuse=tf.AUTO_REUSE):
             # step_model is used for sampling
@@ -95,9 +97,10 @@ class Model(object):
 
         lr = Scheduler(v=lr, nvalues=total_timesteps, schedule=lrschedule)
 
-        def train(obs, states, rewards, masks, actions, values , icm, next_obs):
+        def train(obs, states, rewards, masks, actions, values , next_obs):
             # Here we calculate advantage A(s,a) = R + yV(s') - V(s)
             # rewards = R + yV(s')
+            # print(" icm called in train function ", type(icm))
             advs = rewards - values
             # print("On train shapes are  ")
             # print(" obs {} states {} rewards {} masks {} actions {} values {} ".
@@ -279,9 +282,9 @@ def learn(
 
         if curiosity == False :
 
-           policy_loss, value_loss, policy_entropy = model.train(obs, states, rewards, masks, actions, values, icm=None,next_obs=None)
+           policy_loss, value_loss, policy_entropy = model.train(obs, states, rewards, masks, actions, values,next_obs=None)
         else :
-            policy_loss, value_loss, policy_entropy,forwardLoss , inverseLoss , icm_loss = model.train(obs, states, rewards, masks, actions, values , icm , next_obs)
+            policy_loss, value_loss, policy_entropy,forwardLoss , inverseLoss , icm_loss = model.train(obs, states, rewards, masks, actions, values , next_obs)
 
             # print("Shape of ")
             # print( "policy_loss {}, value_loss {}, policy_entropy {},forwardLoss {} , inverseLoss {}, icm_loss {}".
