@@ -45,7 +45,7 @@ class Buffer(object):
         return _stack_obs(enc_obs, dones,
                           nsteps=self.nsteps)
 
-    def put(self, enc_obs, enc_next_obs actions, rewards, mus, dones, masks , icm_actions , icm_rewards):
+    def put(self, enc_obs, enc_next_obs, actions, rewards, mus, dones, masks , icm_actions , icm_rewards):
         # enc_obs [nenv, (nsteps + nstack), nh, nw, nc]
         # actions, rewards, dones [nenv, nsteps]
         # mus [nenv, nsteps, nact]
@@ -105,7 +105,7 @@ class Buffer(object):
         rewards = take(self.rewards)
         mus = take(self.mus)
         masks = take(self.masks)
-        return obs, actions, rewards, mus, dones, masks, icm_actions , icm_rewards
+        return obs, next_obs ,actions, rewards, mus, dones, masks,icm_actions , icm_rewards
 
 
 

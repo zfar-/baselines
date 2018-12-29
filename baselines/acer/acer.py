@@ -200,12 +200,21 @@ class Model(object):
         
         if icm is not None :
 
+            run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads , 
+            icm.forw_loss , icm.inv_loss, icm.icm_loss]
+            names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
+                     'norm_grads' ,'icm.forw_loss' , 'icm.inv_loss', 'icm.icm_loss' ]
+
             if trust_region:
                 run_ops = run_ops + [norm_grads_q, norm_grads_policy, avg_norm_grads_f, avg_norm_k, avg_norm_g, avg_norm_k_dot_g,
-                                     avg_norm_adj , icm.forw_loss , icm.inv_loss, icm.icm_loss ]
+                                     avg_norm_adj  ]
                 names_ops = names_ops + ['norm_grads_q', 'norm_grads_policy', 'avg_norm_grads_f', 'avg_norm_k', 'avg_norm_g',
-                                         'avg_norm_k_dot_g', 'avg_norm_adj' , 'icm.forw_loss' , 'icm.inv_loss', 'icm.icm_loss' ]
+                                         'avg_norm_k_dot_g', 'avg_norm_adj'  ]
         else :
+            run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads ]
+            names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
+                     'norm_grads' ]
+
             if trust_region:
                 run_ops = run_ops + [norm_grads_q, norm_grads_policy, avg_norm_grads_f, avg_norm_k, avg_norm_g, avg_norm_k_dot_g,
                                      avg_norm_adj  ]
@@ -213,10 +222,15 @@ class Model(object):
                                          'avg_norm_k_dot_g', 'avg_norm_adj' ]
 
 
-        def train(obs, actions, rewards, dones, mus, states, masks, steps):
+        def train(obs, actions, rewards, dones, mus, states, masks, steps, next_states, icm_actions , icm_rewards ):
             cur_lr = lr.value_steps(steps)
             
-            td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr}
+            if icm is not None :
+                td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr , 
+                 icm.state_:obs, icm.next_state_ : next_states , icm.action_ : icm_actions}
+            else :
+                td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr}
+
             if states is not None:
                 td_map[train_model.S] = states
                 td_map[train_model.M] = masks
@@ -242,7 +256,7 @@ class Model(object):
 
 
 class Acer():
-    def __init__(self, runner, model,  ,buffer, log_interval):
+    def __init__(self, runner, model, buffer, log_interval , icm):
         self.runner = runner
         self.model = model
         self.buffer = buffer
@@ -250,8 +264,9 @@ class Acer():
         self.tstart = None
         self.episode_stats = EpisodeStats(runner.nsteps, runner.nenv)
         self.steps = None
+        self.icm= icm
 
-    def call(self, curiosity , icm, on_policy):
+    def call(self, on_policy):
         runner, model, buffer, steps = self.runner, self.model, self.buffer, self.steps
         if on_policy:
             # if its not empty that next_state is contain states
@@ -271,13 +286,30 @@ class Acer():
 
         # reshape stuff correctly
         obs = obs.reshape(runner.batch_ob_shape)
+
         actions = actions.reshape([runner.nbatch])
         rewards = rewards.reshape([runner.nbatch])
         mus = mus.reshape([runner.nbatch, runner.nact])
         dones = dones.reshape([runner.nbatch])
         masks = masks.reshape([runner.batch_ob_shape[0]])
 
-        names_ops, values_ops = model.train(obs, actions, rewards, dones, mus, model.initial_state, masks, steps , icm )
+        if self.icm is not None :
+
+            icm_rewards = icm_rewards.reshape([runner.batch_ob_shape[0]])
+            icm_actions =  icm_actions.reshape([runner.batch_ob_shape[0]])
+
+            if on_policy == False:
+                next_states = next_obs.reshape(runner.batch_ob_shape)
+            else :    
+                next_states = next_states.reshape(runner.batch_ob_shape)
+
+
+
+            names_ops, values_ops = model.train(obs, actions, rewards, dones, mus, model.initial_state, masks, steps , icm , next_states, icm_actions , icm_rewards )
+        else :
+            names_ops, values_ops = model.train(obs, actions, rewards, dones, mus, model.initial_state, masks, steps , next_states = None, icm_actions = None , icm_rewards = None )
+
+
 
         if on_policy and (int(steps/runner.nbatch) % self.log_interval == 0):
             logger.record_tabular("total_timesteps", steps)
@@ -391,13 +423,6 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
         icm = None
 
 
-    if curiosity == False :
-        # print("Runner called without ICM ")
-        runner = Runner(env=env, model=model, nsteps=nsteps , icm = None)
-    else :
-        # print("Runner for ICM called ")
-        runner = Runner(env = env , model = model , nsteps = nsteps , icm= icm)
-
 
 
 
@@ -410,6 +435,7 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
                       max_grad_norm=max_grad_norm, lr=lr, rprop_alpha=rprop_alpha, rprop_epsilon=rprop_epsilon,
                       total_timesteps=total_timesteps, lrschedule=lrschedule, c=c,
                       trust_region=trust_region, alpha=alpha, delta=delta , icm = None)
+        runner = Runner(env=env, model=model, nsteps=nsteps , icm = None)
     else :
 
         model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nenvs=nenvs, nsteps=nsteps,
@@ -417,6 +443,12 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
                       max_grad_norm=max_grad_norm, lr=lr, rprop_alpha=rprop_alpha, rprop_epsilon=rprop_epsilon,
                       total_timesteps=total_timesteps, lrschedule=lrschedule, c=c,
                       trust_region=trust_region, alpha=alpha, delta=delta , icm = icm)
+        runner = Runner(env = env , model = model , nsteps = nsteps , icm= icm)
+
+        # print("Runner for ICM called ")
+        
+
+
 
 
 
@@ -426,11 +458,11 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
     else:
         buffer = None
     nbatch = nenvs*nsteps
-    acer = Acer(runner, model, buffer, log_interval)
+    acer = Acer(runner, model, buffer, log_interval, icm )
     acer.tstart = time.time()
 
     for acer.steps in range(0, total_timesteps, nbatch): #nbatch samples, 1 on_policy call and multiple off-policy calls
-        acer.call( curiosity , icm ,  on_policy=True)
+        acer.call( on_policy=True)
         if replay_ratio > 0 and buffer.has_atleast(replay_start):
             n = np.random.poisson(replay_ratio)
             for _ in range(n):
