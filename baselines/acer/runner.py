@@ -55,7 +55,7 @@ class Runner(AbstractEnvRunner):
                 icm_rewards = self.icm.calculate_intrinsic_reward(icm_states,icm_next_states,actions)
                 icm_rewards = [icm_rewards] * len(rewards) 
 
-                rewards = icm_rewards  + rewards
+                rewards = icm_rewards # + rewards
                 rewards = np.clip(rewards,-constants['REWARD_CLIP'], +constants['REWARD_CLIP'])
 
 
