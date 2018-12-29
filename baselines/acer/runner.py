@@ -27,8 +27,8 @@ class Runner(AbstractEnvRunner):
 
 
     def run(self):
-        curiosity = False
-        # curiosity = True
+        # curiosity = False
+        curiosity = True
         # enc_obs = np.split(self.obs, self.nstack, axis=3)  # so now list of obs steps
         # encoded observation 
         enc_obs = np.split(self.env.stackedobs, self.env.nstack, axis=-1)
@@ -50,11 +50,12 @@ class Runner(AbstractEnvRunner):
             # states information for statefull models like LSTM
 
             if curiosity == True:
-                icm_next_states  = self.icm.calculate
+                # icm_next_states  = self.icm.calculate
+                icm_next_states = obs
                 icm_rewards = self.icm.calculate_intrinsic_reward(icm_states,icm_next_states,actions)
                 icm_rewards = [icm_rewards] * len(rewards) 
 
-                rewards = icm_rewards  #+ rewards
+                rewards = icm_rewards  + rewards
                 rewards = np.clip(rewards,-constants['REWARD_CLIP'], +constants['REWARD_CLIP'])
 
 
@@ -69,6 +70,7 @@ class Runner(AbstractEnvRunner):
             enc_next_obs.append(obs[..., -self.nc:]) # s_t+1
         mb_obs.append(np.copy(self.obs))
         mb_dones.append(self.dones)
+        mb_next_states.append(np.copy(obs))
 
         icm_actions = mb_actions 
         icm_rewards = mb_rewards

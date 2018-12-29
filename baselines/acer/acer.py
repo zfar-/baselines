@@ -16,6 +16,7 @@ from baselines.a2c.utils import EpisodeStats
 from baselines.a2c.utils import get_by_index, check_shape, avg_norm, gradient_add, q_explained_variance
 from baselines.acer.buffer import Buffer
 from baselines.acer.runner import Runner
+from baselines.common.ICM import ICM
 
 # remove last step
 def strip(var, nenvs, nsteps, flat = False):
@@ -305,7 +306,7 @@ class Acer():
 
 
 
-            names_ops, values_ops = model.train(obs, actions, rewards, dones, mus, model.initial_state, masks, steps , icm , next_states, icm_actions , icm_rewards )
+            names_ops, values_ops = model.train(obs, actions, rewards, dones, mus, model.initial_state, masks, steps , next_states, icm_actions , icm_rewards )
         else :
             names_ops, values_ops = model.train(obs, actions, rewards, dones, mus, model.initial_state, masks, steps , next_states = None, icm_actions = None , icm_rewards = None )
 
@@ -393,8 +394,8 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
 
     '''
 
-    # curiosity = True
-    curiosity = False
+    curiosity = True
+    # curiosity = False
 
     print("Running Acer Simple")
     print(locals())
