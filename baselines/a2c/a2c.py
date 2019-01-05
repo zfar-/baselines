@@ -97,11 +97,12 @@ class Model(object):
 
         lr = Scheduler(v=lr, nvalues=total_timesteps, schedule=lrschedule)
 
-        def train(obs, states, rewards, masks, actions, values , next_obs):
+        def train(obs, states, rewards, masks, actions, values , next_obs, new_rew):
             # Here we calculate advantage A(s,a) = R + yV(s') - V(s)
             # rewards = R + yV(s')
             # print(" icm called in train function ", type(icm))
-            advs = rewards - values
+            # advs = rewards - values
+            advs = new_rew - values
             # print("On train shapes are  ")
             # print(" obs {} states {} rewards {} masks {} actions {} values {} ".
                 # format(np.shape(obs) , np.shape(states) , np.shape(rewards) , np.shape(masks) ,np.shape(actions) ,
@@ -278,13 +279,15 @@ def learn(
 
     for update in range(1, total_timesteps//nbatch+1):
         # Get mini batch of experiences
-        obs, states, rewards, masks, actions, values, next_obs = runner.run()
+        obs, states, rewards, masks, actions, values, next_obs, new_rew = runner.run()
+
+        # > now here we will do the reward normalization 
 
         if curiosity == False :
 
            policy_loss, value_loss, policy_entropy = model.train(obs, states, rewards, masks, actions, values,next_obs=None)
         else :
-            policy_loss, value_loss, policy_entropy,forwardLoss , inverseLoss , icm_loss = model.train(obs, states, rewards, masks, actions, values , next_obs)
+            policy_loss, value_loss, policy_entropy,forwardLoss , inverseLoss , icm_loss = model.train(obs, states, rewards, masks, actions, values , next_obs, new_rew)
 
             # print("Shape of ")
             # print( "policy_loss {}, value_loss {}, policy_entropy {},forwardLoss {} , inverseLoss {}, icm_loss {}".
