@@ -175,7 +175,7 @@ def learn(
     epsilon=1e-5,
     alpha=0.99,
     gamma=0.99,
-    log_interval=128,
+    log_interval=10,
     load_path=None,
     **network_kwargs):
 
@@ -279,6 +279,7 @@ def learn(
 
     for update in range(1, total_timesteps//nbatch+1):
         # Get mini batch of experiences
+        # print("Update step : ",update)
         obs, states, rewards, masks, actions, values, next_obs, new_rew = runner.run()
 
         # > now here we will do the reward normalization 
