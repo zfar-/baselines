@@ -55,10 +55,10 @@ class Runner(AbstractEnvRunner):
                 icm_next_states = obs
 
                 icm_rewards = self.icm.calculate_intrinsic_reward(icm_states,icm_next_states,actions)
-                icm_rewards = [icm_rewards] * len(rewards)
+                # icm_rewards = [icm_rewards] * len(rewards)
 
                 # icm_rewards = icm_rewards * 2
-                # print("intrinsic Reward : ",icm_rewards)
+                print("intrinsic Reward : ",icm_rewards)
                 # icm_rewards = np.clip(icm_rewards,-constants['REWARD_CLIP'], constants['REWARD_CLIP'])
             
                 # print("icm _ rewards : ",icm_rewards)

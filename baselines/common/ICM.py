@@ -211,10 +211,26 @@ class ICM(object):
         sess = tf.get_default_session()
         # print("passed states shape {} {} {} ".format(np.shape(state) , np.shape(next_state) , np.shape(action)))
         # passed states shape (2, 84, 84, 4) (2, 84, 84, 4) (2,) 
+        # print("action : {} , type {}".format(np.shape(action) , type(action)))
+        nenvs = np.shape(state)[0]
+        # print("nenvs ",nenvs)
+        error = []
+        for i in range(nenvs) :
+            ac = [action[i]]
+            error.append(sess.run(self.forw_loss,
+                {self.state_: np.expand_dims(state[i,:,:,:], axis=0), self.next_state_: np.expand_dims(next_state[i,:,:,:],axis=0), 
+                self.action_:  ac } ) )
+            # print(" shape passed i {}, state {} , next_state {} , action _type  {} , action {} ".
+                # format(i, np.shape(np.expand_dims(state[i,:,:,:] , axis=0)) , np.shape(next_state[i,:,:,:]) , 
+                    # type(np.array(action[i] )) , np.shape([action[i]]) ) )
+        
+        # tmp = np.concatenate([sess.run(self.forw_loss, 
+            # {self.state_: np.expand_dims(state[i,:,:,:], axis=0), 
+            # self.next_state_: np.expand_dims(next_state[i,:,:,:],axis=0), self.action_:  [action[i]]}) for i in range(nenvs)] , 0 )     
+        # print("tmp : ", np.shape(tmp) )
+        # error = sess.run(self.forw_loss, {self.state_: state, self.next_state_: next_state, self.action_: action})
 
-        error = sess.run(self.forw_loss, {self.state_: state, self.next_state_: next_state, self.action_: action})
-
-        error = error * 0.5
+        error = np.dot(error , 0.5)
 
         # Return intrinsic reward
         return error
