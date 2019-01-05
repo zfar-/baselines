@@ -108,8 +108,8 @@ class Runner(AbstractEnvRunner):
         # print("update : rffs_mean {} , rffs_std {} , rffs_count {} ".format(
                 # np.shape(rffs_mean),np.shape(rffs_std),np.shape(rffs_count)))
 
-        print(" update :  final rews {} rff_rms.var {} ".format(
-                rews , np.shape(self.rff_rms.var)))
+        # print(" update :  final rews {} rff_rms.var {} ".format(
+                # rews , np.shape(self.rff_rms.var)))
 
 
 
@@ -180,10 +180,10 @@ class RewardForwardFilter(object):
         else:
             
 
-            print("RewardForwardFilter , rews {}".format(rews))
+            # print("RewardForwardFilter , rews {}".format(rews))
             self.rewems = self.rewems * self.gamma + rews
-            print("RewardForwardFilter , self.rewems {} ".format(
-            self.rewems) )
+            # print("RewardForwardFilter , self.rewems {} ".format(
+            # self.rewems) )
         # print("RewardForwardFilter , self.rewems {} ".format(
             # self.rewems) )
 
