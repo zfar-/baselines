@@ -59,7 +59,7 @@ class Runner(AbstractEnvRunner):
 
                 # icm_rewards = icm_rewards * 2
                 # print("intrinsic Reward : ",icm_rewards)
-                icm_rewards = np.clip(icm_rewards,-constants['REWARD_CLIP'], constants['REWARD_CLIP'])
+                # icm_rewards = np.clip(icm_rewards,-constants['REWARD_CLIP'], constants['REWARD_CLIP'])
             
                 # print("icm _ rewards : ",icm_rewards)
             
@@ -115,37 +115,37 @@ class Runner(AbstractEnvRunner):
 
         # print(">> the shape of rffs testing ", np.shape(rffs))
 
-        if curiosity == True :
-            if self.gamma > 0.0:
-                # Discount/bootstrap off value fn
-                last_values = self.model.value(self.obs, S=self.states, M=self.dones).tolist()
-                for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
-                    rewards = rewards.tolist()
-                    dones = dones.tolist()
-                    # if dones[-1] == 0:
-                    rewards = discount_with_dones(rewards+[value], dones+[0], self.gamma)[:-1]
-                    # else:
-                    # rewards = discount_with_dones(rewards, dones, self.gamma)
+        # if curiosity == True :
+        #     if self.gamma > 0.0:
+        #         # Discount/bootstrap off value fn
+        #         last_values = self.model.value(self.obs, S=self.states, M=self.dones).tolist()
+        #         for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
+        #             rewards = rewards.tolist()
+        #             dones = dones.tolist()
+        #             # if dones[-1] == 0:
+        #             rewards = discount_with_dones(rewards+[value], dones+[0], self.gamma)[:-1]
+        #             # else:
+        #             # rewards = discount_with_dones(rewards, dones, self.gamma)
 
-                    mb_rewards[n] = rewards
-        else :    
-        # print(" Before discount_with_dones ")
-        # print("Rewards " , mb_rewards)
+        #             mb_rewards[n] = rewards
+        # else :    
+        # # print(" Before discount_with_dones ")
+        # # print("Rewards " , mb_rewards)
 
-        # print("Before rewards and values ")
-        # print("Reward {} values {} ".format(mb_rewards , mb_values))
-            if self.gamma > 0.0:
-                # Discount/bootstrap off value fn
-                last_values = self.model.value(self.obs, S=self.states, M=self.dones).tolist()
-                for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
-                    rewards = rewards.tolist()
-                    dones = dones.tolist()
-                    if dones[-1] == 0:
-                        rewards = discount_with_dones(rewards+[value], dones+[0], self.gamma)[:-1]
-                    else:
-                        rewards = discount_with_dones(rewards, dones, self.gamma)
+        # # print("Before rewards and values ")
+        # # print("Reward {} values {} ".format(mb_rewards , mb_values))
+        #     if self.gamma > 0.0:
+        #         # Discount/bootstrap off value fn
+        #         last_values = self.model.value(self.obs, S=self.states, M=self.dones).tolist()
+        #         for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
+        #             rewards = rewards.tolist()
+        #             dones = dones.tolist()
+        #             if dones[-1] == 0:
+        #                 rewards = discount_with_dones(rewards+[value], dones+[0], self.gamma)[:-1]
+        #             else:
+        #                 rewards = discount_with_dones(rewards, dones, self.gamma)
 
-                    mb_rewards[n] = rewards
+        #             mb_rewards[n] = rewards
 
 
         # print(" After discount_with_dones ")
