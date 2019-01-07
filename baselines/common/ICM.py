@@ -68,7 +68,10 @@ class ICM(object):
         # Foward Loss
         # LF = 1/2 || pred_phi_next_state - phi_next_state ||
         # TODO 0.5 * ?
+        self.forw_loss_axis = tf.reduce_mean(tf.square(tf.subtract(pred_phi_next_state, phi_next_state)) , axis=-1 , name="forward_loss_axis")
+
         self.forw_loss = tf.reduce_mean(tf.square(tf.subtract(pred_phi_next_state, phi_next_state))  , name="forward_loss")
+
 
         # Todo predictor lr scale ?
         # ICM_LOSS = [(1 - beta) * LI + beta * LF ] * Predictor_Lr_scale
@@ -214,12 +217,12 @@ class ICM(object):
         # print("action : {} , type {}".format(np.shape(action) , type(action)))
         nenvs = np.shape(state)[0]
         # print("nenvs ",nenvs)
-        error = []
-        for i in range(nenvs) :
-            ac = [action[i]]
-            error.append(sess.run(self.forw_loss,
-                {self.state_: np.expand_dims(state[i,:,:,:], axis=0), self.next_state_: np.expand_dims(next_state[i,:,:,:],axis=0), 
-                self.action_:  ac } ) )
+        # tmp = []
+        # for i in range(nenvs) :
+        #     ac = [action[i]]
+        #     tmp.append(sess.run(self.forw_loss,
+        #         {self.state_: np.expand_dims(state[i,:,:,:], axis=0), self.next_state_: np.expand_dims(next_state[i,:,:,:],axis=0), 
+        #         self.action_:  ac } ) )
             # print(" shape passed i {}, state {} , next_state {} , action _type  {} , action {} ".
                 # format(i, np.shape(np.expand_dims(state[i,:,:,:] , axis=0)) , np.shape(next_state[i,:,:,:]) , 
                     # type(np.array(action[i] )) , np.shape([action[i]]) ) )
@@ -228,9 +231,11 @@ class ICM(object):
             # {self.state_: np.expand_dims(state[i,:,:,:], axis=0), 
             # self.next_state_: np.expand_dims(next_state[i,:,:,:],axis=0), self.action_:  [action[i]]}) for i in range(nenvs)] , 0 )     
         # print("tmp : ", np.shape(tmp) )
-        # error = sess.run(self.forw_loss, {self.state_: state, self.next_state_: next_state, self.action_: action})
+        error = sess.run(self.forw_loss_axis, {self.state_: state, self.next_state_: next_state, self.action_: action})
+        # print("orignal error  + error with axis -1 ")
+        # print(list(zip(tmp,error)))
 
-        error = np.dot(error , 0.5)
+        error = error * 0.5 #np.dot(error , 0.5)
 
         # Return intrinsic reward
         return error
