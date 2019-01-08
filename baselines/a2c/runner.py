@@ -32,6 +32,7 @@ class Runner(AbstractEnvRunner):
         # We initialize the lists that will contain the mb of experiences
         mb_obs, mb_rewards, mb_actions, mb_values, mb_dones, mb_next_states = [],[],[],[],[],[]
         mb_states = self.states
+        icm_testing_rewards = []
         for n in range(self.nsteps):
             # Given observations, take action and value (V(s))
             # We already have self.obs because Runner superclass run self.obs[:] = env.reset() on init
@@ -55,23 +56,25 @@ class Runner(AbstractEnvRunner):
                 icm_next_states = obs
 
                 icm_rewards = self.icm.calculate_intrinsic_reward(icm_states,icm_next_states,actions)
+                icm_testing_rewards.append(icm_rewards)
                 # icm_rewards = [icm_rewards] * len(rewards)
 
                 # icm_rewards = icm_rewards * 2
                 # print("intrinsic Reward : ",icm_rewards)
-                icm_rewards = np.clip(icm_rewards,-constants['REWARD_CLIP'], constants['REWARD_CLIP'])
+
+                # icm_rewards = np.clip(icm_rewards,-constants['REWARD_CLIP'], constants['REWARD_CLIP'])
             
                 # print("icm _ rewards : ",icm_rewards)
             
 
                 
-                rewards = icm_rewards  + rewards
+                # rewards = icm_rewards  + rewards
                 # print("Rewards icm {} , commulative reward {} ".format(icm_rewards , rewards))
                 
                 # rewards = np.clip(rewards,-constants['REWARD_CLIP'], +constants['REWARD_CLIP'])
                 # print("icm rewards ", rewards)
             
-            # print("calculated rewards ",rewards)
+                # print("calculated rewards ",rewards)
                 
 
             mb_next_states.append(np.copy(obs))
@@ -88,6 +91,9 @@ class Runner(AbstractEnvRunner):
         mb_obs = np.asarray(mb_obs, dtype=self.ob_dtype).swapaxes(1, 0).reshape(self.batch_ob_shape)
         mb_next_states = np.asarray(mb_next_states , dtype=self.ob_dtype).swapaxes(1,0).reshape(self.batch_ob_shape)
         mb_rewards = np.asarray(mb_rewards, dtype=np.float32).swapaxes(1, 0)
+        # > testing mean std of rewards 
+        icm_testing_rewards = np.asarray(icm_testing_rewards, dtype=np.float32).swapaxes(1, 0)
+        # > testing mean std of rewards 
         mb_actions = np.asarray(mb_actions, dtype=self.model.train_model.action.dtype.name).swapaxes(1, 0)
         mb_values = np.asarray(mb_values, dtype=np.float32).swapaxes(1, 0)
         mb_dones = np.asarray(mb_dones, dtype=np.bool).swapaxes(1, 0)
@@ -101,7 +107,30 @@ class Runner(AbstractEnvRunner):
 
         # >
         # rffs = np.array([self.rff.update(rew) for rew in mb_rewards.T])
-        # rffs_mean, rffs_std, rffs_count = mpi_moments(rffs.ravel())
+        rffs_mean, rffs_std, rffs_count = mpi_moments(icm_testing_rewards.ravel())
+        # np.interp(icm_testing_rewards.ravel() , (rffs_mean+)  , ())
+        
+        # icm_testing_rewards = icm_testing_rewards.ravel()
+        # print("\n\nIcm Rewards : ",icm_testing_rewards)
+        
+        icm_testing_rewards = (icm_testing_rewards > rffs_mean).astype(np.int)
+        # icm_testing_rewards[icm_testing_rewards < rffs_mean] = 0
+        
+        mb_rewards = icm_testing_rewards + mb_rewards
+
+        # print( mb_rewards)
+        # mb_rewards = mb_rewards[mb_rewards > 1]
+        # mb_rewards = [1 if mb_rewards[mb_rewards >1 ] else 1]
+        mb_rewards[mb_rewards > 1] = 1  
+        # mask = mb_rewards[((icm_testing_rewards + mb_rewards ) % 2) == 0]
+
+        # print("Mask ",mask)
+        # mb_rewards[mask == 0] = 1 
+
+        # print("Mb reward ",mb_rewards )
+
+        # print("icm testing reward : mean {} , std {} , count {} ".format(rffs_mean , rffs_std , rffs_count))
+        # print("Icm Rewards : ",icm_testing_rewards)
         # self.rff_rms.update_from_moments(rffs_mean, rffs_std ** 2, rffs_count)
         # rews = mb_rewards / np.sqrt(self.rff_rms.var)
         # >
