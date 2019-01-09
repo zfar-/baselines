@@ -34,6 +34,7 @@ class Runner(AbstractEnvRunner):
         enc_obs = np.split(self.env.stackedobs, self.env.nstack, axis=-1)
         enc_next_obs = np.split(self.env.stackedobs, self.env.nstack, axis=-1)
         mb_obs, mb_actions, mb_mus, mb_dones, mb_rewards , mb_next_states= [], [], [], [], [], []
+        icm_testing_rewards = []
         for _ in range(self.nsteps):
             actions, mus, states = self.model._step(self.obs, S=self.states, M=self.dones)
             mb_obs.append(np.copy(self.obs)) # s_t
@@ -53,10 +54,11 @@ class Runner(AbstractEnvRunner):
                 # icm_next_states  = self.icm.calculate
                 icm_next_states = obs
                 icm_rewards = self.icm.calculate_intrinsic_reward(icm_states,icm_next_states,actions)
-                icm_rewards = [icm_rewards] * len(rewards) 
+                # icm_rewards = [icm_rewards] * len(rewards) 
+                icm_testing_rewards.append(icm_rewards)
 
-                rewards = icm_rewards # + rewards
-                rewards = np.clip(rewards,-constants['REWARD_CLIP'], +constants['REWARD_CLIP'])
+                # rewards = icm_rewards # + rewards
+                # rewards = np.clip(rewards,-constants['REWARD_CLIP'], +constants['REWARD_CLIP'])
 
 
 

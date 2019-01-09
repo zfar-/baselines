@@ -1,3 +1,4 @@
+from __future__ import division
 import numpy as np
 from baselines.a2c.utils import discount_with_dones
 from baselines.common.runners import AbstractEnvRunner
@@ -113,9 +114,15 @@ class Runner(AbstractEnvRunner):
         # icm_testing_rewards = icm_testing_rewards.ravel()
         # print("\n\nIcm Rewards : ",icm_testing_rewards)
         
-        icm_testing_rewards = (icm_testing_rewards > rffs_mean).astype(np.float32)
+        icm_testing_rewards = (icm_testing_rewards >  rffs_mean).astype(np.float32)
+        # print(" icm testing rewards ")
+        # print("icm testing reward : mean {} , std {} , division {} ".format(rffs_mean , rffs_std , ((rffs_mean + rffs_std)/2 ) ) )
+        
 
-        np.place(icm_testing_rewards, icm_testing_rewards > 0, 0.5)
+        
+
+        np.place(icm_testing_rewards, icm_testing_rewards > 0, 0.2)
+        # print("ICM testing rewards " , icm_testing_rewards)
 
         # icm_testing_rewards[icm_testing_rewards > rffs_mean] = 0.5
         # icm_testing_rewards[icm_testing_rewards < rffs_mean] = 0
@@ -127,7 +134,7 @@ class Runner(AbstractEnvRunner):
         # print( mb_rewards)
         # mb_rewards = mb_rewards[mb_rewards > 1]
         # mb_rewards = [1 if mb_rewards[mb_rewards >1 ] else 1]
-        mb_rewards[mb_rewards > 1] = 1  
+        # mb_rewards[mb_rewards > 1] = 1  
         # mask = mb_rewards[((icm_testing_rewards + mb_rewards ) % 2) == 0]
 
         # print("Mask ",mask)
@@ -135,7 +142,6 @@ class Runner(AbstractEnvRunner):
 
         # print("Mb reward ",mb_rewards )
 
-        # print("icm testing reward : mean {} , std {} , count {} ".format(rffs_mean , rffs_std , rffs_count))
         # print("Icm Rewards : ",icm_testing_rewards)
         # self.rff_rms.update_from_moments(rffs_mean, rffs_std ** 2, rffs_count)
         # rews = mb_rewards / np.sqrt(self.rff_rms.var)
@@ -195,7 +201,7 @@ class Runner(AbstractEnvRunner):
         # mb_new_rew = rews.flatten()
 
         # print("Flatten rewards and values ")
-        # print("Reward {} values {} ".format(mb_rewards , mb_values))
+        # print("Reward {} ".format(mb_rewards ))
 
         # print("Merged things after obs {} rewards {} actions {} masks {}".
             # format(np.shape(mb_obs) , np.shape(mb_rewards) , np.shape(mb_actions) , np.shape(mb_masks)))
