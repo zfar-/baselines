@@ -113,9 +113,15 @@ class Runner(AbstractEnvRunner):
         # icm_testing_rewards = icm_testing_rewards.ravel()
         # print("\n\nIcm Rewards : ",icm_testing_rewards)
         
-        icm_testing_rewards = (icm_testing_rewards > rffs_mean).astype(np.int)
+        icm_testing_rewards = (icm_testing_rewards > rffs_mean).astype(np.float32)
+
+        np.place(icm_testing_rewards, icm_testing_rewards > 0, 0.5)
+
+        # icm_testing_rewards[icm_testing_rewards > rffs_mean] = 0.5
         # icm_testing_rewards[icm_testing_rewards < rffs_mean] = 0
-        
+        # icm_testing_rewards[icm_testing_rewards < rffs_mean] = 0
+        # print("icm rewards ", icm_testing_rewards)
+
         mb_rewards = icm_testing_rewards + mb_rewards
 
         # print( mb_rewards)
@@ -127,7 +133,7 @@ class Runner(AbstractEnvRunner):
         # print("Mask ",mask)
         # mb_rewards[mask == 0] = 1 
 
-        # print("Mb reward ",mb_rewards )
+        print("Mb reward ",mb_rewards )
 
         # print("icm testing reward : mean {} , std {} , count {} ".format(rffs_mean , rffs_std , rffs_count))
         # print("Icm Rewards : ",icm_testing_rewards)
