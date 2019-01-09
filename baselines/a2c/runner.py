@@ -133,7 +133,7 @@ class Runner(AbstractEnvRunner):
         # print("Mask ",mask)
         # mb_rewards[mask == 0] = 1 
 
-        print("Mb reward ",mb_rewards )
+        # print("Mb reward ",mb_rewards )
 
         # print("icm testing reward : mean {} , std {} , count {} ".format(rffs_mean , rffs_std , rffs_count))
         # print("Icm Rewards : ",icm_testing_rewards)
