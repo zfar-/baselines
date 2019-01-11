@@ -226,8 +226,8 @@ def learn(
                         For instance, 'mlp' network architecture has arguments num_hidden and num_layers.
 
     '''
-    curiosity = True
-    # curiosity = False
+    # curiosity = True
+    curiosity = False
 
 
 
@@ -311,11 +311,12 @@ def learn(
             logger.record_tabular("fps", fps)
             logger.record_tabular("policy_entropy", float(policy_entropy))
             logger.record_tabular("value_loss", float(value_loss))
-            logger.record_tabular("Advantage" , np.mean(advs))
             if curiosity == True :
                 # logger.record_tabular("forwardLoss", float(forwardLoss))
                 # logger.record_tabular("inverseLoss", float(inverseLoss))
                 logger.record_tabular("icm Loss", float(icm_loss))
+                logger.record_tabular("Advantage" , np.mean(advs))
+            
 
             logger.record_tabular("explained_variance", float(ev))
             logger.dump_tabular()

@@ -27,8 +27,8 @@ class Runner(AbstractEnvRunner):
         self.rff_rms = RunningMeanStd()
 
     def run(self):
-        curiosity = True
-        # curiosity = False
+        # curiosity = True
+        curiosity = False
 
         # We initialize the lists that will contain the mb of experiences
         mb_obs, mb_rewards, mb_actions, mb_values, mb_dones, mb_next_states = [],[],[],[],[],[]
@@ -93,7 +93,8 @@ class Runner(AbstractEnvRunner):
         mb_next_states = np.asarray(mb_next_states , dtype=self.ob_dtype).swapaxes(1,0).reshape(self.batch_ob_shape)
         mb_rewards = np.asarray(mb_rewards, dtype=np.float32).swapaxes(1, 0)
         # > testing mean std of rewards 
-        icm_testing_rewards = np.asarray(icm_testing_rewards, dtype=np.float32).swapaxes(1, 0)
+        if curiosity:
+            icm_testing_rewards = np.asarray(icm_testing_rewards, dtype=np.float32).swapaxes(1, 0)
         # > testing mean std of rewards 
         mb_actions = np.asarray(mb_actions, dtype=self.model.train_model.action.dtype.name).swapaxes(1, 0)
         mb_values = np.asarray(mb_values, dtype=np.float32).swapaxes(1, 0)
@@ -108,20 +109,22 @@ class Runner(AbstractEnvRunner):
 
         # >
         # rffs = np.array([self.rff.update(rew) for rew in mb_rewards.T])
-        rffs_mean, rffs_std, rffs_count = mpi_moments(icm_testing_rewards.ravel())
+        if curiosity == True :
+            rffs_mean, rffs_std, rffs_count = mpi_moments(icm_testing_rewards.ravel())
+            icm_testing_rewards = (icm_testing_rewards >  rffs_mean).astype(np.float32)
+            np.place(icm_testing_rewards, icm_testing_rewards > 0, 0.2)
+    
         # np.interp(icm_testing_rewards.ravel() , (rffs_mean+)  , ())
         
         # icm_testing_rewards = icm_testing_rewards.ravel()
         # print("\n\nIcm Rewards : ",icm_testing_rewards)
         
-        icm_testing_rewards = (icm_testing_rewards >  rffs_mean).astype(np.float32)
         # print(" icm testing rewards ")
         # print("icm testing reward : mean {} , std {} , division {} ".format(rffs_mean , rffs_std , ((rffs_mean + rffs_std)/2 ) ) )
         
 
         
 
-        np.place(icm_testing_rewards, icm_testing_rewards > 0, 0.2)
         # print("ICM testing rewards " , icm_testing_rewards)
 
         # icm_testing_rewards[icm_testing_rewards > rffs_mean] = 0.5
@@ -129,7 +132,7 @@ class Runner(AbstractEnvRunner):
         # icm_testing_rewards[icm_testing_rewards < rffs_mean] = 0
         # print("icm rewards ", icm_testing_rewards)
 
-        mb_rewards = icm_testing_rewards + mb_rewards
+            mb_rewards = icm_testing_rewards + mb_rewards
 
         # print( mb_rewards)
         # mb_rewards = mb_rewards[mb_rewards > 1]
