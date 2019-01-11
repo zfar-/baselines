@@ -17,10 +17,11 @@ class Runner(AbstractEnvRunner):
     run():
     - Make a mini batch of experiences
     """
-    def __init__(self, env, model, icm, nsteps=5, gamma=0.99):
+    def __init__(self, env, model, icm, curiosity, nsteps=5, gamma=0.99):
         super().__init__(env=env, model=model, icm=icm, nsteps=nsteps)
         self.gamma = gamma
         self.icm=icm
+        self.curiosity = curiosity
         self.batch_action_shape = [x if x is not None else -1 for x in model.train_model.action.shape.as_list()]
         self.ob_dtype = model.train_model.X.dtype.as_numpy_dtype
         self.rff = RewardForwardFilter(self.gamma)
@@ -28,7 +29,7 @@ class Runner(AbstractEnvRunner):
 
     def run(self):
         # curiosity = True
-        curiosity = False
+        # curiosity = False
 
         # We initialize the lists that will contain the mb of experiences
         mb_obs, mb_rewards, mb_actions, mb_values, mb_dones, mb_next_states = [],[],[],[],[],[]
@@ -45,7 +46,7 @@ class Runner(AbstractEnvRunner):
             mb_values.append(values)
             mb_dones.append(self.dones)
 
-            if curiosity == True:
+            if self.curiosity == True:
                 icm_states=self.obs
 
             # Take actions in env and look the results
@@ -53,7 +54,7 @@ class Runner(AbstractEnvRunner):
             # print("received Rewards from step function ")
 
             # print("received Rewards ",rewards)
-            if curiosity == True:
+            if self.curiosity == True:
                 icm_next_states = obs
 
                 icm_rewards = self.icm.calculate_intrinsic_reward(icm_states,icm_next_states,actions)
@@ -93,7 +94,7 @@ class Runner(AbstractEnvRunner):
         mb_next_states = np.asarray(mb_next_states , dtype=self.ob_dtype).swapaxes(1,0).reshape(self.batch_ob_shape)
         mb_rewards = np.asarray(mb_rewards, dtype=np.float32).swapaxes(1, 0)
         # > testing mean std of rewards 
-        if curiosity:
+        if self.curiosity:
             icm_testing_rewards = np.asarray(icm_testing_rewards, dtype=np.float32).swapaxes(1, 0)
         # > testing mean std of rewards 
         mb_actions = np.asarray(mb_actions, dtype=self.model.train_model.action.dtype.name).swapaxes(1, 0)
@@ -109,7 +110,7 @@ class Runner(AbstractEnvRunner):
 
         # >
         # rffs = np.array([self.rff.update(rew) for rew in mb_rewards.T])
-        if curiosity == True :
+        if self.curiosity == True :
             rffs_mean, rffs_std, rffs_count = mpi_moments(icm_testing_rewards.ravel())
             icm_testing_rewards = (icm_testing_rewards >  rffs_mean).astype(np.float32)
             np.place(icm_testing_rewards, icm_testing_rewards > 0, 0.2)
@@ -160,7 +161,7 @@ class Runner(AbstractEnvRunner):
 
         # print(">> the shape of rffs testing ", np.shape(rffs))
 
-        if curiosity == True :
+        if self.curiosity == True :
             if self.gamma > 0.0:
                 # Discount/bootstrap off value fn
                 last_values = self.model.value(self.obs, S=self.states, M=self.dones).tolist()

@@ -166,6 +166,7 @@ def learn(
     network,
     env,
     seed=None,
+    curiosity=False,
     nsteps=5,
     total_timesteps=int(80e6),
     vf_coef=0.5,
@@ -227,7 +228,7 @@ def learn(
 
     '''
     # curiosity = True
-    curiosity = False
+    # curiosity = False
 
 
 
@@ -265,10 +266,10 @@ def learn(
 
     # Instantiate the runner object
     if curiosity == False:
-        runner = Runner(env, model, nsteps=nsteps, icm=None, gamma=gamma)
+        runner = Runner(env, model, nsteps=nsteps, curiosity=False ,icm=None, gamma=gamma)
     else :
         print("Called curiosity Runner")
-        runner = Runner(env, model, nsteps=nsteps, icm=icm, gamma=gamma)
+        runner = Runner(env, model, nsteps=nsteps, curiosity=curiosity ,icm=icm, gamma=gamma)
 
 
 
