@@ -98,11 +98,13 @@ class Model(object):
 
         lr = Scheduler(v=lr, nvalues=total_timesteps, schedule=lrschedule)
 
-        def train(obs, states, rewards, masks, actions, values , next_obs, icm_rewards,cumulative_dicounted_icm): #, new_rew):
+        def train(obs, states, rewards, masks, actions, values , next_obs ) :
+        #, icm_rewards,cumulative_dicounted_icm): #, new_rew):
             # Here we calculate advantage A(s,a) = R + yV(s') - V(s)
             # rewards = R + yV(s')
             # print(" icm called in train function ", type(icm))
-            advs = cumulative_dicounted_icm - values
+            advs = rewards - values
+
 
 
             # print("Now the advantage ", advs )
@@ -138,7 +140,7 @@ class Model(object):
                 td_map = {train_model.X:obs, A:actions, ADV:advs, R:icm, LR:cur_lr}
             else :
                 # print("curiosity Td Map ")
-                td_map = {train_model.X:obs, A:actions, ADV:advs, R:icm_rewards, LR:cur_lr , 
+                td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr , 
                 icm.state_:obs, icm.next_state_ : next_obs , icm.action_ : actions }# , icm.R :rewards }
 
 
@@ -297,7 +299,7 @@ def learn(
     for update in range(1, total_timesteps//nbatch+1):
         # Get mini batch of experiences
         # print("Update step : ",update)
-        obs, states, rewards, masks, actions, values, next_obs,icm_rewards,cumulative_dicounted_icm = runner.run()
+        obs, states, rewards, masks, actions, values, next_ob = runner.run() # ,icm_rewards,cumulative_dicounted_icm = runner.run()
 
         # > now here we will do the reward normalization 
 
@@ -305,7 +307,7 @@ def learn(
 
            policy_loss, value_loss, policy_entropy = model.train(obs, states, rewards, masks, actions, values,next_obs=None)
         else :
-            policy_loss, value_loss, policy_entropy,forwardLoss , inverseLoss , icm_loss , advs = model.train(obs, states, rewards, masks, actions, values , next_obs, icm_rewards,cumulative_dicounted_icm)
+            policy_loss, value_loss, policy_entropy,forwardLoss , inverseLoss , icm_loss , advs = model.train(obs, states, rewards, masks, actions, values , next_ob)#, icm_rewards,cumulative_dicounted_icm)
 
             # print("Shape of ")
             # print( "policy_loss {}, value_loss {}, policy_entropy {},forwardLoss {} , inverseLoss {}, icm_loss {}".

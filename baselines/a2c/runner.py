@@ -122,6 +122,14 @@ class Runner(AbstractEnvRunner):
 
             # mb_rewards = rews
 
+            mb_rewards = mb_rewards + rews
+
+            # now clipping the reward (-1,1)
+
+            mb_rewards = np.clip(mb_rewards,-constants['REWARD_CLIP'], constants['REWARD_CLIP'])
+            # print(mb_rewards)
+            
+
 
 
 
@@ -223,7 +231,7 @@ class Runner(AbstractEnvRunner):
         mb_masks = mb_masks.flatten()
         mb_rews_icm = rews.flatten()
 
-        mb_new_updated_reward = mb_rews_icm + mb_rewards
+        # mb_new_updated_reward = mb_rews_icm + mb_rewards
 
         # print("New udpated rewards ",mb_new_updated_reward)
 
@@ -243,7 +251,7 @@ class Runner(AbstractEnvRunner):
         # print("Merged things after obs {} rewards {} actions {} masks {}".
             # format(np.shape(mb_obs) , np.shape(mb_rewards) , np.shape(mb_actions) , np.shape(mb_masks)))
 
-        return mb_obs, mb_states, mb_rewards, mb_masks, mb_actions, mb_values, mb_next_states , mb_rews_icm, mb_new_updated_reward #, mb_new_rew
+        return mb_obs, mb_states, mb_rewards, mb_masks, mb_actions, mb_values, mb_next_states # , mb_rews_icm, mb_new_updated_reward #, mb_new_rew
 
 
 
