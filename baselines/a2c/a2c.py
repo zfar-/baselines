@@ -98,19 +98,19 @@ class Model(object):
 
         lr = Scheduler(v=lr, nvalues=total_timesteps, schedule=lrschedule)
 
-        def train(obs, states, rewards, masks, actions, values , next_obs, icm_rewards): #, new_rew):
+        def train(obs, states, rewards, masks, actions, values , next_obs, icm_rewards,cumulative_dicounted_icm): #, new_rew):
             # Here we calculate advantage A(s,a) = R + yV(s') - V(s)
             # rewards = R + yV(s')
             # print(" icm called in train function ", type(icm))
-            advs = rewards - values
+            advs = cumulative_dicounted_icm - values
 
 
             # print("Now the advantage ", advs )
 
-            icm_adv = icm_rewards - values
-            m , s = get_mean_and_std(icm_adv)
+            # icm_adv = icm_rewards - values
+            # m , s = get_mean_and_std(icm_adv)
 
-            advs = (icm_adv - m) / (s + 1e-7)
+            # advs = (icm_adv - m) / (s + 1e-7)
 
 
             # icm_adv = (icm_adv - icm_adv.mean()) / (  + 1e-7) 
@@ -297,7 +297,7 @@ def learn(
     for update in range(1, total_timesteps//nbatch+1):
         # Get mini batch of experiences
         # print("Update step : ",update)
-        obs, states, rewards, masks, actions, values, next_obs,icm_rewards = runner.run()
+        obs, states, rewards, masks, actions, values, next_obs,icm_rewards,cumulative_dicounted_icm = runner.run()
 
         # > now here we will do the reward normalization 
 
@@ -305,7 +305,7 @@ def learn(
 
            policy_loss, value_loss, policy_entropy = model.train(obs, states, rewards, masks, actions, values,next_obs=None)
         else :
-            policy_loss, value_loss, policy_entropy,forwardLoss , inverseLoss , icm_loss , advs = model.train(obs, states, rewards, masks, actions, values , next_obs, icm_rewards)
+            policy_loss, value_loss, policy_entropy,forwardLoss , inverseLoss , icm_loss , advs = model.train(obs, states, rewards, masks, actions, values , next_obs, icm_rewards,cumulative_dicounted_icm)
 
             # print("Shape of ")
             # print( "policy_loss {}, value_loss {}, policy_entropy {},forwardLoss {} , inverseLoss {}, icm_loss {}".

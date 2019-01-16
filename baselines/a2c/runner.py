@@ -177,37 +177,37 @@ class Runner(AbstractEnvRunner):
 
         # print(">> the shape of rffs testing ", np.shape(rffs))
 
-        # if self.curiosity == True :
-        #     if self.gamma > 0.0:
-        #         # Discount/bootstrap off value fn
-        #         last_values = self.model.value(self.obs, S=self.states, M=self.dones).tolist()
-        #         for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
-        #             rewards = rewards.tolist()
-        #             dones = dones.tolist()
-        #             # if dones[-1] == 0:
-        #             rewards = discount_with_dones(rewards+[value], dones+[0], self.gamma)[:-1]
-        #             # else:
-        #             # rewards = discount_with_dones(rewards, dones, self.gamma)
+        if self.curiosity == True :
+            if self.gamma > 0.0:
+                # Discount/bootstrap off value fn
+                last_values = self.model.value(self.obs, S=self.states, M=self.dones).tolist()
+                for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
+                    rewards = rewards.tolist()
+                    dones = dones.tolist()
+                    # if dones[-1] == 0:
+                    rewards = discount_with_dones(rewards+[value], dones+[0], self.gamma)[:-1]
+                    # else:
+                    # rewards = discount_with_dones(rewards, dones, self.gamma)
 
-        #             mb_rewards[n] = rewards
-        # else :    
-        # # print(" Before discount_with_dones ")
-        # # print("Rewards " , mb_rewards)
+                    mb_rewards[n] = rewards
+        else :    
+        # print(" Before discount_with_dones ")
+        # print("Rewards " , mb_rewards)
 
-        # # print("Before rewards and values ")
-        # # print("Reward {} values {} ".format(mb_rewards , mb_values))
-        #     if self.gamma > 0.0:
-        #         # Discount/bootstrap off value fn
-        #         last_values = self.model.value(self.obs, S=self.states, M=self.dones).tolist()
-        #         for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
-        #             rewards = rewards.tolist()
-        #             dones = dones.tolist()
-        #             if dones[-1] == 0:
-        #                 rewards = discount_with_dones(rewards+[value], dones+[0], self.gamma)[:-1]
-        #             else:
-        #                 rewards = discount_with_dones(rewards, dones, self.gamma)
+        # print("Before rewards and values ")
+        # print("Reward {} values {} ".format(mb_rewards , mb_values))
+            if self.gamma > 0.0:
+                # Discount/bootstrap off value fn
+                last_values = self.model.value(self.obs, S=self.states, M=self.dones).tolist()
+                for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
+                    rewards = rewards.tolist()
+                    dones = dones.tolist()
+                    if dones[-1] == 0:
+                        rewards = discount_with_dones(rewards+[value], dones+[0], self.gamma)[:-1]
+                    else:
+                        rewards = discount_with_dones(rewards, dones, self.gamma)
 
-        #             mb_rewards[n] = rewards
+                    mb_rewards[n] = rewards
 
 
 
@@ -222,6 +222,19 @@ class Runner(AbstractEnvRunner):
         mb_values = mb_values.flatten()
         mb_masks = mb_masks.flatten()
         mb_rews_icm = rews.flatten()
+
+        mb_new_updated_reward = mb_rews_icm + mb_rewards
+
+        # print("New udpated rewards ",mb_new_updated_reward)
+
+        # rffs_mean, rffs_std, rffs_count = mpi_moments(mb_new_updated_reward.ravel())
+        # self.rff_rms.update_from_moments(rffs_mean, rffs_std ** 2, rffs_count)
+        # rews = mb_new_updated_reward / np.sqrt(self.rff_rms.var)
+
+        # print("After normalized",rews)
+
+
+
         # mb_new_rew = rews.flatten()
 
         # print("Flatten rewards and values ")
@@ -230,7 +243,7 @@ class Runner(AbstractEnvRunner):
         # print("Merged things after obs {} rewards {} actions {} masks {}".
             # format(np.shape(mb_obs) , np.shape(mb_rewards) , np.shape(mb_actions) , np.shape(mb_masks)))
 
-        return mb_obs, mb_states, mb_rewards, mb_masks, mb_actions, mb_values, mb_next_states , mb_rews_icm #, mb_new_rew
+        return mb_obs, mb_states, mb_rewards, mb_masks, mb_actions, mb_values, mb_next_states , mb_rews_icm, mb_new_updated_reward #, mb_new_rew
 
 
 
