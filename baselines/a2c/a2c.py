@@ -13,6 +13,7 @@ from baselines.a2c.utils import Scheduler, find_trainable_variables
 from baselines.a2c.runner import Runner
 
 from baselines.common.ICM import ICM
+from baselines.a2c.utils import get_mean_and_std
 
 from tensorflow import losses
 import numpy as np
@@ -97,11 +98,25 @@ class Model(object):
 
         lr = Scheduler(v=lr, nvalues=total_timesteps, schedule=lrschedule)
 
-        def train(obs, states, rewards, masks, actions, values , next_obs): #, new_rew):
+        def train(obs, states, rewards, masks, actions, values , next_obs, icm_rewards): #, new_rew):
             # Here we calculate advantage A(s,a) = R + yV(s') - V(s)
             # rewards = R + yV(s')
             # print(" icm called in train function ", type(icm))
             advs = rewards - values
+
+
+            # print("Now the advantage ", advs )
+
+            icm_adv = icm_rewards - values
+            m , s = get_mean_and_std(icm_adv)
+
+            advs = (icm_adv - m) / (s + 1e-7)
+
+
+            # icm_adv = (icm_adv - icm_adv.mean()) / (  + 1e-7) 
+            # print("icm advantage ", icm_adv)
+
+
             # advs = new_rew - values
             # print("Advantage :", advs)
             # print("On train shapes are  ")
@@ -120,10 +135,10 @@ class Model(object):
 
             if icm is None :
 
-                td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr}
+                td_map = {train_model.X:obs, A:actions, ADV:advs, R:icm, LR:cur_lr}
             else :
                 # print("curiosity Td Map ")
-                td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr , 
+                td_map = {train_model.X:obs, A:actions, ADV:advs, R:icm_rewards, LR:cur_lr , 
                 icm.state_:obs, icm.next_state_ : next_obs , icm.action_ : actions }# , icm.R :rewards }
 
 
@@ -252,7 +267,7 @@ def learn(
             max_grad_norm=max_grad_norm, lr=lr, alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps, lrschedule=lrschedule)
     else :
         print("Called curiosity model")
-        make_icm = lambda: ICM(ob_space = temp_ob_space, ac_space = temp_ac_space, max_grad_norm = max_grad_norm, beta = 0.2, icm_lr_scale = 0.5 )
+        make_icm = lambda: ICM(ob_space = temp_ob_space, ac_space = temp_ac_space, max_grad_norm = max_grad_norm, beta = 0.2, icm_lr_scale = 0.1 )
         icm = make_icm()
 
         model = Model(policy=policy, env=env, nsteps=nsteps, icm=icm , ent_coef=ent_coef, vf_coef=vf_coef,
@@ -282,7 +297,7 @@ def learn(
     for update in range(1, total_timesteps//nbatch+1):
         # Get mini batch of experiences
         # print("Update step : ",update)
-        obs, states, rewards, masks, actions, values, next_obs = runner.run()
+        obs, states, rewards, masks, actions, values, next_obs,icm_rewards = runner.run()
 
         # > now here we will do the reward normalization 
 
@@ -290,7 +305,7 @@ def learn(
 
            policy_loss, value_loss, policy_entropy = model.train(obs, states, rewards, masks, actions, values,next_obs=None)
         else :
-            policy_loss, value_loss, policy_entropy,forwardLoss , inverseLoss , icm_loss , advs = model.train(obs, states, rewards, masks, actions, values , next_obs) #, new_rew)
+            policy_loss, value_loss, policy_entropy,forwardLoss , inverseLoss , icm_loss , advs = model.train(obs, states, rewards, masks, actions, values , next_obs, icm_rewards)
 
             # print("Shape of ")
             # print( "policy_loss {}, value_loss {}, policy_entropy {},forwardLoss {} , inverseLoss {}, icm_loss {}".

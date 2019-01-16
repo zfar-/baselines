@@ -234,8 +234,9 @@ class ICM(object):
         error = sess.run(self.forw_loss_axis, {self.state_: state, self.next_state_: next_state, self.action_: action})
         # print("orignal error  + error with axis -1 ")
         # print(list(zip(tmp,error)))
-
-        error = error * 0.5 #np.dot(error , 0.5)
+        # print("orignal Error ",error)
+        # error = error * 0.5 #np.dot(error , 0.5)
+        # print("Return error ",error)
 
         # Return intrinsic reward
         return error
