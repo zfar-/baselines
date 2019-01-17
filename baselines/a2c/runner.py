@@ -126,7 +126,7 @@ class Runner(AbstractEnvRunner):
 
             # now clipping the reward (-1,1)
 
-            mb_rewards = np.clip(mb_rewards,-constants['REWARD_CLIP'], constants['REWARD_CLIP'])
+            # mb_rewards = np.clip(mb_rewards,-constants['REWARD_CLIP'], constants['REWARD_CLIP'])
             # print(mb_rewards)
             
 
