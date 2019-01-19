@@ -130,14 +130,14 @@ class Model(object):
 
            
             # print("advantage reward and values shape ")
-            # print("advs {} , rewards shape {} , values {}".format(advs , np.shape(rewards) , values))
+            # print("advs {} , rewards shape {} , values {}".format(np.shape(advs) , np.shape(rewards) , np.shape(values)))
 
             for step in range(len(obs)):
                 cur_lr = lr.value()
 
             if icm is None :
 
-                td_map = {train_model.X:obs, A:actions, ADV:advs, R:icm, LR:cur_lr}
+                td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr}
             else :
                 # print("curiosity Td Map ")
                 td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr , 
