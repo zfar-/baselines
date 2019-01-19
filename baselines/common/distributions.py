@@ -149,6 +149,13 @@ class BernoulliPdType(PdType):
 #         u = tf.random_uniform(tf.shape(self.logits))
 #         return U.argmax(self.logits - tf.log(-tf.log(u)), axis=-1)
 
+
+
+def guassian_noise_layer(input_layer ,mean=0.0, std=2.0):
+    print("Enterted teh guassian_noise_layer")
+    noise = tf.random_normal(shape=tf.shape(input_layer), mean=mean , stddev=std , dtype=tf.float32)
+    return input_layer + noise 
+
 class CategoricalPd(Pd):
     def __init__(self, logits):
         self.logits = logits
@@ -176,6 +183,8 @@ class CategoricalPd(Pd):
         else:
             # already encoded
             assert x.shape.as_list() == self.logits.shape.as_list()
+
+        self.logits = guassian_noise_layer(self.logits)
 
         return tf.nn.softmax_cross_entropy_with_logits_v2(
             logits=self.logits,

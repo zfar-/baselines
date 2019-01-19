@@ -60,6 +60,7 @@ class Runner(AbstractEnvRunner):
                 icm_next_states = obs
 
                 icm_rewards = self.icm.calculate_intrinsic_reward(icm_states,icm_next_states,actions)
+                # print("shape of icm rewards ",np.shape(icm_rewards))
                 icm_testing_rewards.append(icm_rewards)
                 # icm_rewards = [icm_rewards] * len(rewards)
 
@@ -128,11 +129,6 @@ class Runner(AbstractEnvRunner):
 
             # mb_rewards = np.clip(mb_rewards,-constants['REWARD_CLIP'], constants['REWARD_CLIP'])
             # print(mb_rewards)
-            
-
-
-
-
             # print(" shape of normalized reward ", np.shape(rews))
 
 
@@ -146,9 +142,6 @@ class Runner(AbstractEnvRunner):
         
         # print(" icm testing rewards ")
         # print("icm testing reward : mean {} , std {} , division {} ".format(rffs_mean , rffs_std , ((rffs_mean + rffs_std)/2 ) ) )
-        
-
-        
 
         # print("ICM testing rewards " , icm_testing_rewards)
 
