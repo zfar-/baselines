@@ -184,7 +184,7 @@ class CategoricalPd(Pd):
             # already encoded
             assert x.shape.as_list() == self.logits.shape.as_list()
 
-        self.logits = guassian_noise_layer(self.logits)
+        # self.logits = guassian_noise_layer(self.logits)
 
         return tf.nn.softmax_cross_entropy_with_logits_v2(
             logits=self.logits,
