@@ -23,6 +23,8 @@ def strip(var, nenvs, nsteps, flat = False):
     vars = batch_to_seq(var, nenvs, nsteps + 1, flat)
     return seq_to_batch(vars[:-1], flat)
 
+
+# > Q trace is the sum of discounted reward
 def q_retrace(R, D, q_i, v, rho_i, nenvs, nsteps, gamma):
     """
     Calculates q_retrace targets
@@ -98,15 +100,18 @@ class Model(object):
             polyak_model = policy(observ_placeholder=train_ob_placeholder, sess=sess)
 
         # Notation: (var) = batch variable, (var)s = seqeuence variable, (var)_i = variable index by action at step i
+        # shape is [n_envs * (n_steps + 1)]
 
         # action probability distributions according to train_model, polyak_model and step_model
         # poilcy.pi is probability distribution parameters; to obtain distribution that sums to 1 need to take softmax
         train_model_p = tf.nn.softmax(train_model.pi)
         polyak_model_p = tf.nn.softmax(polyak_model.pi)
         step_model_p = tf.nn.softmax(step_model.pi)
+        # train model policy probility and train model q value
         v = tf.reduce_sum(train_model_p * train_model.q, axis = -1) # shape is [nenvs * (nsteps + 1)]
 
         # strip off last step
+        # dictribution_f , f_polyak, q_value
         f, f_pol, q = map(lambda var: strip(var, nenvs, nsteps), [train_model_p, polyak_model_p, train_model.q])
         # Get pi and q values for actions taken
         f_i = get_by_index(f, A)
@@ -117,21 +122,25 @@ class Model(object):
         rho_i = get_by_index(rho, A)
 
         # Calculate Q_retrace targets
+        # passed 
+        # R = reward , D = done_ph , v = value ,... rest is same
         qret = q_retrace(R, D, q_i, v, rho_i, nenvs, nsteps, gamma)
 
         # Calculate losses
         # Entropy
         # entropy = tf.reduce_mean(strip(train_model.pd.entropy(), nenvs, nsteps))
-        entropy = tf.reduce_mean(cat_entropy_softmax(f))
+        entropy = tf.reduce_mean(cat_entropy_softmax(f)) # f is distribution here 
 
         # Policy Graident loss, with truncated importance sampling & bias correction
-        v = strip(v, nenvs, nsteps, True)
+        v = strip(v, nenvs, nsteps, True) # v is value here
         check_shape([qret, v, rho_i, f_i], [[nenvs * nsteps]] * 4)
         check_shape([rho, f, q], [[nenvs * nsteps, nact]] * 2)
 
         # Truncated importance sampling
-        adv = qret - v
+        adv = qret - v # v is value here
         logf = tf.log(f_i + eps)
+        #  c is correction term 
+        #  importance weight clipping factor : c
         gain_f = logf * tf.stop_gradient(adv * tf.minimum(c, rho_i))  # [nenvs * nsteps]
         loss_f = -tf.reduce_mean(gain_f)
 
@@ -141,6 +150,8 @@ class Model(object):
         check_shape([adv_bc, logf_bc], [[nenvs * nsteps, nact]]*2)
         gain_bc = tf.reduce_sum(logf_bc * tf.stop_gradient(adv_bc * tf.nn.relu(1.0 - (c / (rho + eps))) * f), axis = 1) #IMP: This is sum, as expectation wrt f
         loss_bc= -tf.reduce_mean(gain_bc)
+
+       #  IMP: This is sum, as expectation wrt f
 
         loss_policy = loss_f + loss_bc
 
@@ -259,6 +270,7 @@ class Model(object):
 class Acer():
     def __init__(self, runner, model, buffer, log_interval , icm):
         self.runner = runner
+        # self.curiosity = curiosity
         self.model = model
         self.buffer = buffer
         self.log_interval = log_interval
@@ -328,7 +340,7 @@ class Acer():
 def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=0.5, ent_coef=0.01,
           max_grad_norm=10, lr=7e-4, lrschedule='linear', rprop_epsilon=1e-5, rprop_alpha=0.99, gamma=0.99,
           log_interval=100, buffer_size=50000, replay_ratio=4, replay_start=10000, c=10.0,
-          trust_region=True, alpha=0.99, delta=1, load_path=None, **network_kwargs):
+          trust_region=True, alpha=0.99, delta=1, load_path=None, curiosity=False ,  **network_kwargs):
 
     '''
     Main entrypoint for ACER (Actor-Critic with Experience Replay) algorithm (https://arxiv.org/pdf/1611.01224.pdf)
@@ -389,12 +401,15 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
 
     load_path:          str, path to load the model from (default: None)
 
+    curosity:           Enable curiosity driven learning 
+
     **network_kwargs:               keyword arguments to the policy / network builder. See baselines.common/policies.py/build_policy and arguments to a particular type of network
                                     For instance, 'mlp' network architecture has arguments num_hidden and num_layers.
 
+
     '''
 
-    curiosity = True
+    # curiosity = True
     # curiosity = False
 
     print("Running Acer Simple")
@@ -417,11 +432,6 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
 
 
 
-    if curiosity == True :
-        make_icm = lambda: ICM(ob_space = temp_ob_space, ac_space = temp_ac_space, max_grad_norm = max_grad_norm, beta = 0.2, icm_lr_scale = 0.5 )
-        icm = make_icm()
-    else :
-        icm = None
 
 
 
@@ -431,27 +441,27 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
     
     if curiosity == False :
 
+        icm = None
+
         model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nenvs=nenvs, nsteps=nsteps,
                       ent_coef=ent_coef, q_coef=q_coef, gamma=gamma,
                       max_grad_norm=max_grad_norm, lr=lr, rprop_alpha=rprop_alpha, rprop_epsilon=rprop_epsilon,
                       total_timesteps=total_timesteps, lrschedule=lrschedule, c=c,
                       trust_region=trust_region, alpha=alpha, delta=delta , icm = None)
-        runner = Runner(env=env, model=model, nsteps=nsteps , icm = None)
+        runner = Runner(env=env, model=model, nsteps=nsteps , curiosity=False ,icm = None)
     else :
+
+        make_icm = lambda: ICM(ob_space = temp_ob_space, ac_space = temp_ac_space, max_grad_norm = max_grad_norm, beta = 0.2, icm_lr_scale = 0.5 )
+        icm = make_icm()
 
         model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nenvs=nenvs, nsteps=nsteps,
                       ent_coef=ent_coef, q_coef=q_coef, gamma=gamma,
                       max_grad_norm=max_grad_norm, lr=lr, rprop_alpha=rprop_alpha, rprop_epsilon=rprop_epsilon,
                       total_timesteps=total_timesteps, lrschedule=lrschedule, c=c,
                       trust_region=trust_region, alpha=alpha, delta=delta , icm = icm)
-        runner = Runner(env = env , model = model , nsteps = nsteps , icm= icm)
+        runner = Runner(env = env , model = model , nsteps = nsteps , icm= icm, gamma = gamma , curiosity = curiosity)
 
         # print("Runner for ICM called ")
-        
-
-
-
-
 
     
     if replay_ratio > 0:

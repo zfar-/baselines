@@ -7,7 +7,7 @@ from baselines.common.constants import constants
 
 class Runner(AbstractEnvRunner):
 
-    def __init__(self, env, model, nsteps, icm):
+    def __init__(self, env, model, nsteps, icm,gamma, curiosity):
         super().__init__(env=env, model=model, nsteps=nsteps , icm= icm)
         assert isinstance(env.action_space, spaces.Discrete), 'This ACER implementation works only with discrete action spaces!'
         assert isinstance(env, VecFrameStack)
@@ -16,19 +16,21 @@ class Runner(AbstractEnvRunner):
         nenv = self.nenv
         self.nbatch = nenv * nsteps
         self.batch_ob_shape = (nenv*(nsteps+1),) + env.observation_space.shape
-
+        self.curiosity = curiosity
         self.obs = env.reset()
         self.obs_dtype = env.observation_space.dtype
         self.ac_dtype = env.action_space.dtype
         self.nstack = self.env.nstack
         self.nc = self.batch_ob_shape[-1] // self.nstack
+        self.rff = RewardForwardFilter(gamma)
 
         print(" What is NC " , self.nc)
 
 
+
     def run(self):
         # curiosity = False
-        curiosity = True
+        # curiosity = True
         # enc_obs = np.split(self.obs, self.nstack, axis=3)  # so now list of obs steps
         # encoded observation 
         enc_obs = np.split(self.env.stackedobs, self.env.nstack, axis=-1)
@@ -44,13 +46,13 @@ class Runner(AbstractEnvRunner):
             enc_obs.append(self.obs[..., -self.nc:]) # s_t
 
 
-            if curiosity == True :
+            if self.curiosity == True :
                 icm_states = self.obs
 
             obs, rewards, dones, _ = self.env.step(actions)
             # states information for statefull models like LSTM
 
-            if curiosity == True:
+            if self.curiosity == True:
                 # icm_next_states  = self.icm.calculate
                 icm_next_states = obs
                 icm_rewards = self.icm.calculate_intrinsic_reward(icm_states,icm_next_states,actions)
@@ -82,9 +84,12 @@ class Runner(AbstractEnvRunner):
         mb_obs = np.asarray(mb_obs, dtype=self.obs_dtype).swapaxes(1, 0)
         mb_actions = np.asarray(mb_actions, dtype=self.ac_dtype).swapaxes(1, 0)
         mb_rewards = np.asarray(mb_rewards, dtype=np.float32).swapaxes(1, 0)
+        # >
+        if self.curiosity :
+            icm_testing_rewards = np.array(icm_testing_rewards , dtype=np.float32).swapaxes(1, 0)
+        # >
         mb_mus = np.asarray(mb_mus, dtype=np.float32).swapaxes(1, 0)
         mb_next_states = np.array(mb_next_states, dtype=self.obs_dtype).swapaxes(1,0)
-
         icm_actions.append(actions)
         icm_rewards.append(rewards)
         icm_actions = np.asarray(icm_actions, dtype=self.ac_dtype).swapaxes(1, 0)
@@ -96,7 +101,42 @@ class Runner(AbstractEnvRunner):
         mb_masks = mb_dones # Used for statefull models like LSTM's to mask state when done
         mb_dones = mb_dones[:, 1:] # Used for calculating returns. The dones array is now aligned with rewards
 
+
+        if self.curiosity == True :
+            rffs = np.array([self.rff.update(rew) for rew in icm_testing_rewards.T])
+            rffs_mean, rffs_std, rffs_count = mpi_moments(rffs.ravel())
+            self.rff_rms.update_from_moments(rffs_mean, rffs_std ** 2, rffs_count)
+            rews = icm_testing_rewards / np.sqrt(self.rff_rms.var)
+
+            mb_rewards = mb_rewards + rews
+
+
+
+
         # shapes are now [nenv, nsteps, []]
         # When pulling from buffer, arrays will now be reshaped in place, preventing a deep copy.
 
         return  enc_obs, enc_next_obs ,mb_obs, mb_actions, mb_rewards, mb_mus, mb_dones, mb_masks, mb_next_states, icm_actions , icm_rewards
+
+
+class RewardForwardFilter(object):
+    def __init__(self, gamma):
+        self.rewems = None
+        self.gamma = gamma
+
+    def update(self, rews):
+        if self.rewems is None:
+            self.rewems = rews
+        else:
+            
+
+            # print("RewardForwardFilter , rews {}".format(rews))
+            self.rewems = self.rewems * self.gamma + rews
+            # print("RewardForwardFilter , self.rewems {} ".format(
+            # self.rewems) )
+        # print("RewardForwardFilter , self.rewems {} ".format(
+            # self.rewems) )
+
+        # print("RewardForwardFilter , rews {}".format(rews))
+        return self.rewems
+
