@@ -4,6 +4,10 @@ from baselines.common.vec_env.vec_frame_stack import VecFrameStack
 from gym import spaces
 from baselines.common.constants import constants
 
+from baselines.common.mpi_moments import mpi_moments
+from baselines.common.running_mean_std import RunningMeanStd
+
+
 
 class Runner(AbstractEnvRunner):
 
@@ -103,6 +107,7 @@ class Runner(AbstractEnvRunner):
 
 
         if self.curiosity == True :
+            # > scaled and normalization of curisoity reward
             rffs = np.array([self.rff.update(rew) for rew in icm_testing_rewards.T])
             rffs_mean, rffs_std, rffs_count = mpi_moments(rffs.ravel())
             self.rff_rms.update_from_moments(rffs_mean, rffs_std ** 2, rffs_count)
