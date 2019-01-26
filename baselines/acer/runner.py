@@ -27,6 +27,7 @@ class Runner(AbstractEnvRunner):
         self.nstack = self.env.nstack
         self.nc = self.batch_ob_shape[-1] // self.nstack
         self.rff = RewardForwardFilter(gamma)
+        self.rff_rms = RunningMeanStd()
 
         print(" What is NC " , self.nc)
 
