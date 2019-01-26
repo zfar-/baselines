@@ -448,7 +448,7 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
                       max_grad_norm=max_grad_norm, lr=lr, rprop_alpha=rprop_alpha, rprop_epsilon=rprop_epsilon,
                       total_timesteps=total_timesteps, lrschedule=lrschedule, c=c,
                       trust_region=trust_region, alpha=alpha, delta=delta , icm = None)
-        runner = Runner(env=env, model=model, nsteps=nsteps , curiosity=False ,icm = None)
+        runner = Runner(env=env, model=model, nsteps=nsteps , gamma=gamma ,curiosity=False ,icm = None)
     else :
 
         make_icm = lambda: ICM(ob_space = temp_ob_space, ac_space = temp_ac_space, max_grad_norm = max_grad_norm, beta = 0.2, icm_lr_scale = 0.5 )
