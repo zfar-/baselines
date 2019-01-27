@@ -137,7 +137,18 @@ class Model(object):
         check_shape([rho, f, q], [[nenvs * nsteps, nact]] * 2)
 
         # Truncated importance sampling
-        adv = qret - v # v is value here
+        if icm is None : 
+            adv = qret - v # v is value here
+
+        else : 
+            # > Advantage Normalization
+            icm_adv = qret - v
+            m , s = get_mean_and_std(icm_adv)
+
+            advs = (icm_adv - m) / (s + 1e-7)
+            # > Advantage Normalization
+
+
         logf = tf.log(f_i + eps)
         #  c is correction term 
         #  importance weight clipping factor : c
@@ -417,6 +428,11 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
     set_global_seeds(seed)
     if not isinstance(env, VecFrameStack):
         env = VecFrameStack(env, 1)
+
+    # > Random 1000 steps on env to get mean and std 
+    
+    # > Random 1000 steps on env to get mean and std 
+    
 
     policy = build_policy(env, network, estimate_q=True, **network_kwargs)
     nenvs = env.num_envs
