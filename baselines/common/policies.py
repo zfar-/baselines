@@ -118,7 +118,7 @@ class PolicyWithValue(object):
     def load(self, load_path):
         tf_util.load_state(load_path, sess=self.sess)
 
-def build_policy(env, policy_network, value_network=None,  normalize_observations=True, estimate_q=False, **policy_kwargs):
+def build_policy(env, policy_network, value_network=None,  normalize_observations=False, estimate_q=False, **policy_kwargs):
     if isinstance(policy_network, str):
         network_type = policy_network
         policy_network = get_network_builder(network_type)(**policy_kwargs)
@@ -131,8 +131,11 @@ def build_policy(env, policy_network, value_network=None,  normalize_observation
 
         extra_tensors = {}
 
-        if normalize_observations and X.dtype == tf.float32:
-            encoded_x, rms = _normalize_clip_observation(X)
+        print("Policies observation normalize_observations")
+        # print("Its called here with type ", X.dtype)
+
+        if normalize_observations: #  and X.dtype == tf.float32:
+            encoded_x, rms = _normalize_clip_observation(tf.to_float(X))
             extra_tensors['rms'] = rms
         else:
             encoded_x = X
@@ -182,6 +185,7 @@ def build_policy(env, policy_network, value_network=None,  normalize_observation
 
 def _normalize_clip_observation(x, clip_range=[-5.0, 5.0]):
     rms = RunningMeanStd(shape=x.shape[1:])
+    print(" Calcualted obv mean {} and std {} ".format(rms.mean,rms.std))
     norm_x = tf.clip_by_value((x - rms.mean) / rms.std, min(clip_range), max(clip_range))
     return norm_x, rms
 

@@ -18,6 +18,7 @@ from baselines.common.vec_env.vec_normalize import VecNormalize
 try:
     from mpi4py import MPI
 except ImportError:
+    print("can't import MPI ")
     MPI = None
 
 try:
@@ -52,8 +53,10 @@ _game_envs['retro'] = {
 
 
 def train(args, extra_args):
+
     env_type, env_id = get_env_type(args.env)
-    print('env_type: {}'.format(env_type))
+    print("In the train function with env_type {} env_id {}".format(env_type , env_id))
+    # print('env_type: {}'.format(env_type))
 
     total_timesteps = int(args.num_timesteps)
     seed = args.seed
@@ -62,6 +65,9 @@ def train(args, extra_args):
     alg_kwargs = get_learn_function_defaults(args.alg, env_type)
     alg_kwargs.update(extra_args)
 
+
+
+    print("Now called build_env env function with arg :: ",args)
     env = build_env(args)
     if args.save_video_interval != 0:
         env = VecVideoRecorder(env, osp.join(logger.Logger.CURRENT.dir, "videos"), record_video_trigger=lambda x: x % args.save_video_interval == 0, video_length=args.save_video_length)
@@ -84,7 +90,28 @@ def train(args, extra_args):
     return model, env
 
 
+def random_agent_ob_mean_std(env, nsteps=10000):
+    ob = np.asarray(env.reset())
+    if MPI.COMM_WORLD.Get_rank() == 0:
+        obs = [ob]
+        print("::: Entered the random action for 1000 steps ::: ")
+        for _ in range(nsteps):
+            ac = env.action_space.sample() # random action 
+            ob, _, done, _ = env.step(ac)
+            if done:
+                ob = env.reset()
+            obs.append(np.asarray(ob))
+        mean = np.mean(obs, 0).astype(np.float32)
+        std = np.std(obs, 0).mean().astype(np.float32)
+    else:
+        mean = np.empty(shape=ob.shape, dtype=np.float32)
+        std = np.empty(shape=(), dtype=np.float32)
+    MPI.COMM_WORLD.Bcast(mean, root=0)
+    MPI.COMM_WORLD.Bcast(std, root=0)
+    return mean, std
+
 def build_env(args):
+
     ncpu = multiprocessing.cpu_count()
     if sys.platform == 'darwin': ncpu //= 2
     nenv = args.num_env or ncpu
@@ -92,7 +119,7 @@ def build_env(args):
     seed = args.seed
 
     env_type, env_id = get_env_type(args.env)
-
+    print("In the build_env function with alg :: ",alg)
     if env_type in {'atari', 'retro'}:
         if alg == 'deepq':
             env = make_env(env_id, env_type, seed=seed, wrapper_kwargs={'frame_stack': True})
@@ -100,8 +127,27 @@ def build_env(args):
             env = make_env(env_id, env_type, seed=seed)
         else:
             frame_stack_size = 4
+            print("make_vec_env arguments env_id {} , env_type {} , nenv {} ,seed {} , gamestate {} reward_scale {}".format(
+                env_id , env_type , nenv , seed , args.gamestate , args.reward_scale))
+            
+            #>
+            print("Called environment for mean and std")
+            env = make_vec_env(env_id, env_type, 1, seed, gamestate=args.gamestate, reward_scale=args.reward_scale)
+            # env = VecFrameStack(env, frame_stack_size) ## No need for frame stacking while calculation of mean and std
+            ob_mean, ob_std = random_agent_ob_mean_std(env)
+            print(" environment complete with mean {} and std {}".format(ob_mean , ob_std))
+            del env 
+            #>
+
             env = make_vec_env(env_id, env_type, nenv, seed, gamestate=args.gamestate, reward_scale=args.reward_scale)
+            
+            # print("Received env from make_vec_env  type env {} and env ".format(
+                # type(env) , env))
+            print("ob_space {} and ac_space {} ".format(env.observation_space, env.action_space))
             env = VecFrameStack(env, frame_stack_size)
+
+
+            print("After Frame stacking env would become " )
 
     else:
        config = tf.ConfigProto(allow_soft_placement=True,
@@ -115,7 +161,7 @@ def build_env(args):
        if env_type == 'mujoco':
            env = VecNormalize(env)
 
-    return env
+    return env #, ob_mean, ob_std
 
 
 def get_env_type(env_id):
@@ -164,7 +210,6 @@ def get_learn_function_defaults(alg, env_type):
     return kwargs
 
 
-
 def parse_cmdline_kwargs(args):
     '''
     convert a list of '='-spaced command-line arguments to a dictionary, evaluating python objects when possible
@@ -195,7 +240,9 @@ def main(args):
         logger.configure(format_strs=[])
         rank = MPI.COMM_WORLD.Get_rank()
 
+    print("Called the trained function")
     model, env = train(args, extra_args)
+
     env.close()
 
     if args.save_path is not None and rank == 0:
@@ -204,7 +251,7 @@ def main(args):
 
     if args.play:
         logger.log("Running trained model")
-        env = build_env(args)
+        env ,ob_mean , ob_std = build_env(args)
         obs = env.reset()
         def initialize_placeholders(nlstm=128,**kwargs):
             return np.zeros((args.num_env or 1, 2*nlstm)), np.zeros((1))
