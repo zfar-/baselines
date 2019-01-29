@@ -112,6 +112,12 @@ class Model(object):
             # icm_adv = icm_rewards - values
             # m , s = get_mean_and_std(icm_adv)
 
+            # > adv Normaliztion
+            m , s = get_mean_and_std(advs)
+            advs = (advs - m) / (s + 1e-7)
+
+
+
             # advs = (icm_adv - m) / (s + 1e-7)
 
 
