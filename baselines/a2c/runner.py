@@ -177,6 +177,8 @@ class Runner(AbstractEnvRunner):
 
 
         # print(">> the shape of rffs testing ", np.shape(rffs))
+
+        mb_rewards_copy = mb_rewards
         
         if self.curiosity == True :
             if self.gamma > 0.0:
@@ -215,6 +217,11 @@ class Runner(AbstractEnvRunner):
 
         # print(" After discount_with_dones ")
         # print("Orgnal discounterd Rewards " , np.shape(mb_rewards))
+
+        rffs_mean, rffs_std, rffs_count = mpi_moments(mb_rewards.ravel())
+        self.rff_rms.update_from_moments(rffs_mean, rffs_std ** 2, rffs_count)
+        mb_rewards = mb_rewards_copy / np.sqrt(self.rff_rms.var)
+
 
 
         mb_actions = mb_actions.reshape(self.batch_action_shape)
