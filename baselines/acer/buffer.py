@@ -22,7 +22,6 @@ class Buffer(object):
         self.mus = None
         self.dones = None
         self.masks = None
-        self.next_states = None
 
         # Size indexes
         self.next_idx = 0
@@ -45,28 +44,22 @@ class Buffer(object):
         return _stack_obs(enc_obs, dones,
                           nsteps=self.nsteps)
 
-    def put(self, enc_obs, enc_next_obs, actions, rewards, mus, dones, masks , icm_actions):
+    def put(self, enc_obs, actions, rewards, mus, dones, masks):
         # enc_obs [nenv, (nsteps + nstack), nh, nw, nc]
         # actions, rewards, dones [nenv, nsteps]
         # mus [nenv, nsteps, nact]
 
         if self.enc_obs is None:
             self.enc_obs = np.empty([self.size] + list(enc_obs.shape), dtype=self.obs_dtype)
-            self.enc_next_obs = np.empty([self.size] + list(enc_next_obs.shape), dtype=self.obs_dtype)
             self.actions = np.empty([self.size] + list(actions.shape), dtype=self.ac_dtype)
-            self.icm_actions = np.empty([self.size] + list(icm_actions.shape), dtype=self.ac_dtype)
             self.rewards = np.empty([self.size] + list(rewards.shape), dtype=np.float32)
-            # self.icm_rewards = np.empty([self.size] + list(icm_rewards.shape), dtype=np.float32)
             self.mus = np.empty([self.size] + list(mus.shape), dtype=np.float32)
             self.dones = np.empty([self.size] + list(dones.shape), dtype=np.bool)
             self.masks = np.empty([self.size] + list(masks.shape), dtype=np.bool)
 
         self.enc_obs[self.next_idx] = enc_obs
-        self.enc_next_obs[self.next_idx] = enc_next_obs
         self.actions[self.next_idx] = actions
-        self.icm_actions[self.next_idx] = icm_actions
         self.rewards[self.next_idx] = rewards
-        # self.icm_rewards[self.next_idx] = icm_rewards
         self.mus[self.next_idx] = mus
         self.dones[self.next_idx] = dones
         self.masks[self.next_idx] = masks
@@ -96,16 +89,12 @@ class Buffer(object):
         take = lambda x: self.take(x, idx, envx)  # for i in range(nenv)], axis = 0)
         dones = take(self.dones)
         enc_obs = take(self.enc_obs)
-        enc_next_obs = take(self.enc_next_obs)
         obs = self.decode(enc_obs, dones)
-        next_obs = self.decode(enc_next_obs , dones)
         actions = take(self.actions)
-        icm_actions = take(self.icm_actions)
-        # icm_rewards = take(self.icm_rewards)
         rewards = take(self.rewards)
         mus = take(self.mus)
         masks = take(self.masks)
-        return obs, next_obs ,actions, rewards, mus, dones, masks,icm_actions 
+        return obs, actions, rewards, mus, dones, masks
 
 
 
