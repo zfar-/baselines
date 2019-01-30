@@ -178,39 +178,39 @@ class Runner(AbstractEnvRunner):
 
         # print(">> the shape of rffs testing ", np.shape(rffs))
 
-        mb_rewards_copy = mb_rewards
+        # mb_rewards_copy = mb_rewards
         
-        if self.curiosity == True :
-            if self.gamma > 0.0:
-                # Discount/bootstrap off value fn
-                last_values = self.model.value(self.obs, S=self.states, M=self.dones).tolist()
-                for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
-                    rewards = rewards.tolist()
-                    dones = dones.tolist()
-                    # if dones[-1] == 0:
-                    rewards = discount_with_dones(rewards+[value], dones+[0], self.gamma)[:-1]
-                    # else:
-                    # rewards = discount_with_dones(rewards, dones, self.gamma)
+        # if self.curiosity == True :
+        #     if self.gamma > 0.0:
+        #         # Discount/bootstrap off value fn
+        #         last_values = self.model.value(self.obs, S=self.states, M=self.dones).tolist()
+        #         for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
+        #             rewards = rewards.tolist()
+        #             dones = dones.tolist()
+        #             # if dones[-1] == 0:
+        #             rewards = discount_with_dones(rewards+[value], dones+[0], self.gamma)[:-1]
+        #             # else:
+        #             # rewards = discount_with_dones(rewards, dones, self.gamma)
 
-                    mb_rewards[n] = rewards
-        else :    
-        # print(" Before discount_with_dones ")
-        # print("Rewards " , mb_rewards)
+        #             mb_rewards[n] = rewards
+        # else :    
+        # # print(" Before discount_with_dones ")
+        # # print("Rewards " , mb_rewards)
 
-        # print("Before rewards and values ")
-        # print("Reward {} values {} ".format(mb_rewards , mb_values))
-            if self.gamma > 0.0:
-                # Discount/bootstrap off value fn
-                last_values = self.model.value(self.obs, S=self.states, M=self.dones).tolist()
-                for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
-                    rewards = rewards.tolist()
-                    dones = dones.tolist()
-                    if dones[-1] == 0:
-                        rewards = discount_with_dones(rewards+[value], dones+[0], self.gamma)[:-1]
-                    else:
-                        rewards = discount_with_dones(rewards, dones, self.gamma)
+        # # print("Before rewards and values ")
+        # # print("Reward {} values {} ".format(mb_rewards , mb_values))
+        #     if self.gamma > 0.0:
+        #         # Discount/bootstrap off value fn
+        #         last_values = self.model.value(self.obs, S=self.states, M=self.dones).tolist()
+        #         for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
+        #             rewards = rewards.tolist()
+        #             dones = dones.tolist()
+        #             if dones[-1] == 0:
+        #                 rewards = discount_with_dones(rewards+[value], dones+[0], self.gamma)[:-1]
+        #             else:
+        #                 rewards = discount_with_dones(rewards, dones, self.gamma)
 
-                    mb_rewards[n] = rewards
+        #             mb_rewards[n] = rewards
 
 
 
@@ -218,9 +218,9 @@ class Runner(AbstractEnvRunner):
         # print(" After discount_with_dones ")
         # print("Orgnal discounterd Rewards " , np.shape(mb_rewards))
 
-        rffs_mean, rffs_std, rffs_count = mpi_moments(mb_rewards.ravel())
-        self.rff_rms.update_from_moments(rffs_mean, rffs_std ** 2, rffs_count)
-        mb_rewards = mb_rewards_copy / np.sqrt(self.rff_rms.var)
+        # rffs_mean, rffs_std, rffs_count = mpi_moments(mb_rewards.ravel())
+        # self.rff_rms.update_from_moments(rffs_mean, rffs_std ** 2, rffs_count)
+        # mb_rewards = mb_rewards_copy / np.sqrt(self.rff_rms.var)
 
 
 
