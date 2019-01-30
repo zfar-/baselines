@@ -45,7 +45,7 @@ class Buffer(object):
         return _stack_obs(enc_obs, dones,
                           nsteps=self.nsteps)
 
-    def put(self, enc_obs, enc_next_obs, actions, rewards, mus, dones, masks , icm_actions , icm_rewards):
+    def put(self, enc_obs, enc_next_obs, actions, rewards, mus, dones, masks , icm_actions):
         # enc_obs [nenv, (nsteps + nstack), nh, nw, nc]
         # actions, rewards, dones [nenv, nsteps]
         # mus [nenv, nsteps, nact]
@@ -56,7 +56,7 @@ class Buffer(object):
             self.actions = np.empty([self.size] + list(actions.shape), dtype=self.ac_dtype)
             self.icm_actions = np.empty([self.size] + list(icm_actions.shape), dtype=self.ac_dtype)
             self.rewards = np.empty([self.size] + list(rewards.shape), dtype=np.float32)
-            self.icm_rewards = np.empty([self.size] + list(icm_rewards.shape), dtype=np.float32)
+            # self.icm_rewards = np.empty([self.size] + list(icm_rewards.shape), dtype=np.float32)
             self.mus = np.empty([self.size] + list(mus.shape), dtype=np.float32)
             self.dones = np.empty([self.size] + list(dones.shape), dtype=np.bool)
             self.masks = np.empty([self.size] + list(masks.shape), dtype=np.bool)
@@ -66,7 +66,7 @@ class Buffer(object):
         self.actions[self.next_idx] = actions
         self.icm_actions[self.next_idx] = icm_actions
         self.rewards[self.next_idx] = rewards
-        self.icm_rewards[self.next_idx] = icm_rewards
+        # self.icm_rewards[self.next_idx] = icm_rewards
         self.mus[self.next_idx] = mus
         self.dones[self.next_idx] = dones
         self.masks[self.next_idx] = masks
@@ -101,11 +101,11 @@ class Buffer(object):
         next_obs = self.decode(enc_next_obs , dones)
         actions = take(self.actions)
         icm_actions = take(self.icm_actions)
-        icm_rewards = take(self.icm_rewards)
+        # icm_rewards = take(self.icm_rewards)
         rewards = take(self.rewards)
         mus = take(self.mus)
         masks = take(self.masks)
-        return obs, next_obs ,actions, rewards, mus, dones, masks,icm_actions , icm_rewards
+        return obs, next_obs ,actions, rewards, mus, dones, masks,icm_actions 
 
 
 

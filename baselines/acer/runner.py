@@ -20,7 +20,9 @@ class Runner(AbstractEnvRunner):
         nenv = self.nenv
         self.nbatch = nenv * nsteps
         self.batch_ob_shape = (nenv*(nsteps+1),) + env.observation_space.shape
+        
         self.curiosity = curiosity
+        
         self.obs = env.reset()
         self.obs_dtype = env.observation_space.dtype
         self.ac_dtype = env.action_space.dtype
@@ -29,8 +31,8 @@ class Runner(AbstractEnvRunner):
         self.rff = RewardForwardFilter(gamma)
         self.rff_rms = RunningMeanStd()
 
-        print(" What is NC " , self.nc)
-
+        # print(" What is NC " , self.nc)
+        print(" State of curiosity : ",icm)
 
 
     def run(self):
@@ -52,6 +54,7 @@ class Runner(AbstractEnvRunner):
 
 
             if self.curiosity == True :
+                print("3 icm here ")
                 icm_states = self.obs
 
             obs, rewards, dones, _ = self.env.step(actions)
@@ -59,6 +62,7 @@ class Runner(AbstractEnvRunner):
 
             if self.curiosity == True:
                 # icm_next_states  = self.icm.calculate
+                print("4 ICM here")
                 icm_next_states = obs
                 icm_rewards = self.icm.calculate_intrinsic_reward(icm_states,icm_next_states,actions)
                 # icm_rewards = [icm_rewards] * len(rewards) 
@@ -82,7 +86,7 @@ class Runner(AbstractEnvRunner):
         mb_next_states.append(np.copy(obs))
 
         icm_actions = mb_actions 
-        icm_rewards = mb_rewards
+        # icm_rewards = mb_rewards
 
         enc_obs = np.asarray(enc_obs, dtype=self.obs_dtype).swapaxes(1, 0)
         enc_next_obs = np.asarray(enc_next_obs, dtype=self.obs_dtype).swapaxes(1, 0)
@@ -91,14 +95,15 @@ class Runner(AbstractEnvRunner):
         mb_rewards = np.asarray(mb_rewards, dtype=np.float32).swapaxes(1, 0)
         # >
         if self.curiosity :
+            print("5 icm here ")
             icm_testing_rewards = np.array(icm_testing_rewards , dtype=np.float32).swapaxes(1, 0)
         # >
         mb_mus = np.asarray(mb_mus, dtype=np.float32).swapaxes(1, 0)
         mb_next_states = np.array(mb_next_states, dtype=self.obs_dtype).swapaxes(1,0)
         icm_actions.append(actions)
-        icm_rewards.append(rewards)
+        # icm_rewards.append(rewards)
         icm_actions = np.asarray(icm_actions, dtype=self.ac_dtype).swapaxes(1, 0)
-        icm_rewards = np.asarray(icm_rewards, dtype=np.float32).swapaxes(1, 0)
+        # icm_rewards = np.asarray(icm_rewards, dtype=np.float32).swapaxes(1, 0)
 
 
         mb_dones = np.asarray(mb_dones, dtype=np.bool).swapaxes(1, 0)
@@ -109,6 +114,7 @@ class Runner(AbstractEnvRunner):
 
         if self.curiosity == True :
             # > scaled and normalization of curisoity reward
+            print("6 icm here")
             rffs = np.array([self.rff.update(rew) for rew in icm_testing_rewards.T])
             rffs_mean, rffs_std, rffs_count = mpi_moments(rffs.ravel())
             self.rff_rms.update_from_moments(rffs_mean, rffs_std ** 2, rffs_count)
@@ -122,7 +128,7 @@ class Runner(AbstractEnvRunner):
         # shapes are now [nenv, nsteps, []]
         # When pulling from buffer, arrays will now be reshaped in place, preventing a deep copy.
 
-        return  enc_obs, enc_next_obs ,mb_obs, mb_actions, mb_rewards, mb_mus, mb_dones, mb_masks, mb_next_states, icm_actions , icm_rewards
+        return  enc_obs, enc_next_obs ,mb_obs, mb_actions, mb_rewards, mb_mus, mb_dones, mb_masks, mb_next_states, icm_actions #, icm_rewards
 
 
 class RewardForwardFilter(object):

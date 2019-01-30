@@ -84,8 +84,8 @@ class Model(object):
 
         params = find_trainable_variables("acer_model")
         print("Params {}".format(len(params)))
-        for var in params:
-            print(var)
+        # for var in params:
+        #     print(var)
 
         # create polyak averaged model
         ema = tf.train.ExponentialMovingAverage(alpha)
@@ -142,10 +142,10 @@ class Model(object):
 
         else : 
             # > Advantage Normalization
-            icm_adv = qret - v
-            m , s = get_mean_and_std(icm_adv)
+            adv = qret - v
+            # m , s = get_mean_and_std(icm_adv)
 
-            advs = (icm_adv - m) / (s + 1e-7)
+            # advs = (icm_adv - m) / (s + 1e-7)
             # > Advantage Normalization
 
 
@@ -205,7 +205,7 @@ class Model(object):
         grads = list(zip(grads, params))
 
         if icm is not None :
-
+            print("with ICM")
             grads = grads + icm.pred_grads_and_vars
 
 
@@ -222,7 +222,7 @@ class Model(object):
         # Ops/Summaries to run, and their names for logging
         
         if icm is not None :
-
+            print("With ICM")
             run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads , 
             icm.forw_loss , icm.inv_loss, icm.icm_loss]
             names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
@@ -245,10 +245,11 @@ class Model(object):
                                          'avg_norm_k_dot_g', 'avg_norm_adj' ]
 
 
-        def train(obs, actions, rewards, dones, mus, states, masks, steps, next_states, icm_actions , icm_rewards ):
+        def train(obs, actions, rewards, dones, mus, states, masks, steps, next_states, icm_actions  ):
             cur_lr = lr.value_steps(steps)
             
             if icm is not None :
+                print("with ICM ")
                 td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr , 
                  icm.state_:obs, icm.next_state_ : next_states , icm.action_ : icm_actions}
             else :
@@ -279,9 +280,9 @@ class Model(object):
 
 
 class Acer():
-    def __init__(self, runner, model, buffer, log_interval , icm):
+    def __init__(self, runner, model, buffer, log_interval , curiosity, icm):
         self.runner = runner
-        # self.curiosity = curiosity
+        self.curiosity = curiosity
         self.model = model
         self.buffer = buffer
         self.log_interval = log_interval
@@ -296,15 +297,20 @@ class Acer():
             # if its not empty that next_state is contain states
             # print("\n\n\n !!! its on policy !!! \n\n\n") 
 
-            enc_obs, enc_next_obs , obs, actions, rewards, mus, dones, masks, next_states, icm_actions , icm_rewards = runner.run()
+            # enc_obs, enc_next_obs , obs, actions, rewards, mus, dones, masks, next_states, icm_actions , icm_rewards = runner.run()
+            enc_obs, enc_next_obs , obs, actions, rewards, mus, dones, masks, next_states, icm_actions = runner.run()
             
             self.episode_stats.feed(rewards, dones)
             if buffer is not None:
-                buffer.put(enc_obs, enc_next_obs ,actions, rewards, mus, dones, masks, icm_actions , icm_rewards)
+                # buffer.put(enc_obs, enc_next_obs ,actions, rewards, mus, dones, masks, icm_actions , icm_rewards)
+                buffer.put(enc_obs, enc_next_obs ,actions, rewards, mus, dones, masks, icm_actions )
         else:
             # get obs, actions, rewards, mus, dones from buffer.
             # print("\n\n~~~~ now its off Policy ~~~\n\n")
-            obs, next_obs ,actions, rewards, mus, dones, masks, icm_actions, icm_rewards = buffer.get()
+            # obs, next_obs ,actions, rewards, mus, dones, masks, icm_actions, icm_rewards = buffer.get()
+            obs, next_obs ,actions, rewards, mus, dones, masks, icm_actions= buffer.get()
+
+
 
 
 
@@ -319,7 +325,9 @@ class Acer():
 
         if self.icm is not None :
 
-            icm_rewards = icm_rewards.reshape([runner.batch_ob_shape[0]])
+            print("2 icm Called here ")
+
+            # icm_rewards = icm_rewards.reshape([runner.batch_ob_shape[0]])
             icm_actions =  icm_actions.reshape([runner.batch_ob_shape[0]])
 
             if on_policy == False:
@@ -329,9 +337,9 @@ class Acer():
 
 
 
-            names_ops, values_ops = model.train(obs, actions, rewards, dones, mus, model.initial_state, masks, steps , next_states, icm_actions , icm_rewards )
+            names_ops, values_ops = model.train(obs, actions, rewards, dones, mus, model.initial_state, masks, steps , next_states, icm_actions )
         else :
-            names_ops, values_ops = model.train(obs, actions, rewards, dones, mus, model.initial_state, masks, steps , next_states = None, icm_actions = None , icm_rewards = None )
+            names_ops, values_ops = model.train(obs, actions, rewards, dones, mus, model.initial_state, masks, steps , next_states = None, icm_actions = None  )
 
 
 
@@ -423,8 +431,10 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
     # curiosity = True
     # curiosity = False
 
+    print("Curisoty : ", curiosity)
+
     print("Running Acer Simple")
-    print(locals())
+    # print(locals())
     set_global_seeds(seed)
     if not isinstance(env, VecFrameStack):
         env = VecFrameStack(env, 1)
@@ -480,12 +490,13 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
         # print("Runner for ICM called ")
 
     
+    print(" the icm ",icm )
     if replay_ratio > 0:
         buffer = Buffer(env=env, nsteps=nsteps, size=buffer_size)
     else:
         buffer = None
     nbatch = nenvs*nsteps
-    acer = Acer(runner, model, buffer, log_interval, icm )
+    acer = Acer(runner, model, buffer, log_interval, icm=icm , curiosity=curiosity)
     acer.tstart = time.time()
 
     for acer.steps in range(0, total_timesteps, nbatch): #nbatch samples, 1 on_policy call and multiple off-policy calls

@@ -131,12 +131,12 @@ def build_env(args):
                 env_id , env_type , nenv , seed , args.gamestate , args.reward_scale))
             
             #>
-            print("Called environment for mean and std")
-            env = make_vec_env(env_id, env_type, 1, seed, gamestate=args.gamestate, reward_scale=args.reward_scale)
-            # env = VecFrameStack(env, frame_stack_size) ## No need for frame stacking while calculation of mean and std
-            ob_mean, ob_std = random_agent_ob_mean_std(env)
-            print(" environment complete with mean {} and std {}".format(ob_mean , ob_std))
-            del env 
+            # print("Called environment for mean and std")
+            # env = make_vec_env(env_id, env_type, 1, seed, gamestate=args.gamestate, reward_scale=args.reward_scale)
+            # # env = VecFrameStack(env, frame_stack_size) ## No need for frame stacking while calculation of mean and std
+            # ob_mean, ob_std = random_agent_ob_mean_std(env)
+            # print(" environment complete with mean {} and std {}".format(ob_mean , ob_std))
+            # del env 
             #>
 
             env = make_vec_env(env_id, env_type, nenv, seed, gamestate=args.gamestate, reward_scale=args.reward_scale)
