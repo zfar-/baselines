@@ -251,10 +251,7 @@ class Model(object):
             cur_lr = lr.value_steps(steps)
             
             if icm is not None :
-                # print("with ICM ")
-                print("Train td map icm optimizater")
-                print(" icm state obs {} , icm next state {} , icm actions {}".format(
-                    obs.shape , next_states.shape , icm_actions.shape))
+                print("with ICM ")
                 td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr , 
                  icm.state_:obs, icm.next_state_ : next_states , icm.action_ : icm_actions}
             else :
@@ -308,18 +305,12 @@ class Acer():
             self.episode_stats.feed(rewards, dones)
             if buffer is not None:
                 # buffer.put(enc_obs, enc_next_obs ,actions, rewards, mus, dones, masks, icm_actions , icm_rewards)
-                print("Feeded to the buffer shape ")
-                print("enc_obs  {}, enc_next_obs  {},actions  {}, rewards  {}, mus   {}, dones  {}, masks  {}, icm_actions  {}".format(
-                    enc_obs.shape, enc_next_obs.shape ,actions.shape, rewards.shape, mus.shape, dones.shape , masks.shape, icm_actions.shape))
                 buffer.put(enc_obs, enc_next_obs ,actions, rewards, mus, dones, masks, icm_actions )
         else:
             # get obs, actions, rewards, mus, dones from buffer.
             # print("\n\n~~~~ now its off Policy ~~~\n\n")
             # obs, next_obs ,actions, rewards, mus, dones, masks, icm_actions, icm_rewards = buffer.get()
             obs, next_obs ,actions, rewards, mus, dones, masks, icm_actions= buffer.get()
-            print("Received from buffer ")
-            print(" obs {}, next_obs {} ,actions {}, rewards {}, mus {}, dones {}, masks {}, icm_actions {}".format(
-                obs.shape, next_obs.shape ,actions.shape, rewards.shape, mus.shape, dones.shape, masks.shape, icm_actions.shape))
 
 
 

@@ -96,7 +96,7 @@ class Runner(AbstractEnvRunner):
         # >
         if self.curiosity :
             # print("5 icm here ")
-            # icm_testing_rewards.append(rewards)
+            icm_testing_rewards.append(rewards)
         
             icm_testing_rewards = np.array(icm_testing_rewards , dtype=np.float32).swapaxes(1, 0)
         # >
@@ -112,19 +112,19 @@ class Runner(AbstractEnvRunner):
         mb_masks = mb_dones # Used for statefull models like LSTM's to mask state when done
         mb_dones = mb_dones[:, 1:] # Used for calculating returns. The dones array is now aligned with rewards
 
-        # print("sent parameters enc obs {} enc next obs {} mb_obs {} actions {} mb_rewards {} , icm_next_states {} ,icm_actions {} , icm_rewards {} ".format( 
-             # enc_obs.shape , enc_next_obs.shape ,mb_obs.shape, mb_actions.shape, mb_rewards.shape , mb_next_states.shape ,icm_actions.shape, icm_testing_rewards.shape))
+        print("sent parameters enc obs {} enc next obs {} mb_obs {} actions {} mb_rewards {} , icm_next_states {} ,icm_actions {} , icm_rewards {} ".format( 
+             enc_obs.shape , enc_next_obs.shape ,mb_obs.shape, mb_actions.shape, mb_rewards.shape , mb_next_states.shape ,icm_actions.shape, icm_testing_rewards.shape))
 
 
-        # if self.curiosity == True :
-        #     # > scaled and normalization of curisoity reward
-        #     # print("6 icm here")
-        #     rffs = np.array([self.rff.update(rew) for rew in icm_testing_rewards.T])
-        #     rffs_mean, rffs_std, rffs_count = mpi_moments(rffs.ravel())
-        #     self.rff_rms.update_from_moments(rffs_mean, rffs_std ** 2, rffs_count)
-        #     rews = icm_testing_rewards / np.sqrt(self.rff_rms.var)
+        if self.curiosity == True :
+            # > scaled and normalization of curisoity reward
+            # print("6 icm here")
+            rffs = np.array([self.rff.update(rew) for rew in icm_testing_rewards.T])
+            rffs_mean, rffs_std, rffs_count = mpi_moments(rffs.ravel())
+            self.rff_rms.update_from_moments(rffs_mean, rffs_std ** 2, rffs_count)
+            rews = icm_testing_rewards / np.sqrt(self.rff_rms.var)
 
-        #     mb_rewards = mb_rewards + rews
+            mb_rewards = mb_rewards + rews
 
 
 
