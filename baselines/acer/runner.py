@@ -59,8 +59,8 @@ class Runner(AbstractEnvRunner):
             
             if self.curiosity :
                 icm_next_states = obs 
-                print("Sent parameters for \n icm_states {} , icm_next_states {} , actions {}".format(
-                    icm_states.shape , icm_next_states.shape , actions.shape))
+                # print("Sent parameters for \n icm_states {} , icm_next_states {} , actions {}".format(
+                    # icm_states.shape , icm_next_states.shape , actions.shape))
                 icm_rewards =  self.icm.calculate_intrinsic_reward(icm_states,icm_next_states,actions)
                 icm_testing_rewards.append(icm_rewards)
 

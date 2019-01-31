@@ -215,10 +215,28 @@ class Model(object):
         def train(obs, actions, rewards, dones, mus, states, masks, steps,on_policy,next_states,icm_actions):
             cur_lr = lr.value_steps(steps)
 
+            if on_policy == False : print("its off policy")
+
+            if icm is None or on_policy == False: # running when its off-policy
+                run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads]
+                names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
+                             'norm_grads']
+            elif on_policy:
+                run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads , 
+                icm.forw_loss , icm.inv_loss, icm.icm_loss]
+                names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
+                         'norm_grads' ,'icm.forw_loss' , 'icm.inv_loss', 'icm.icm_loss' ]
+
+            if trust_region:
+                run_ops = run_ops + [norm_grads_q, norm_grads_policy, avg_norm_grads_f, avg_norm_k, avg_norm_g, avg_norm_k_dot_g,
+                                     avg_norm_adj]
+                names_ops = names_ops + ['norm_grads_q', 'norm_grads_policy', 'avg_norm_grads_f', 'avg_norm_k', 'avg_norm_g',
+                                         'avg_norm_k_dot_g', 'avg_norm_adj']
+
             # on and off policy setting parameter
-            
+
             if icm is not None :
-                print("with ICM ")
+                # print("with ICM ")
                 td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr , 
                  icm.state_:obs, icm.next_state_ : next_states , icm.action_ : icm_actions}
             else :
