@@ -146,6 +146,8 @@ class Model(object):
                 td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr}
             else :
                 # print("curiosity Td Map ")
+                print(" obs {} , next obs {} , actions  {} ".format(np.shape(obs) , np.shape(next_obs),
+                    np.shape(actions)))
                 td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr , 
                 icm.state_:obs, icm.next_state_ : next_obs , icm.action_ : actions }# , icm.R :rewards }
 
