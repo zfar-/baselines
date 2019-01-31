@@ -300,9 +300,10 @@ class Acer():
         dones = dones.reshape([runner.nbatch])
         masks = masks.reshape([runner.batch_ob_shape[0]])
 
-        if self.curiosity:
-            icm_actions = icm_actions.reshape([runner.batch_ob_shape[0]])
+        if self.curiosity and on_policy:
+            
             if on_policy :
+                icm_actions = icm_actions.reshape([runner.batch_ob_shape[0]])
                 next_states = next_states.reshape(runner.batch_ob_shape)
 
             names_ops, values_ops = model.train(obs, actions, rewards, dones, mus, model.initial_state, masks, steps , on_policy=on_policy , next_states = next_states, icm_actions=icm_actions )
