@@ -274,7 +274,7 @@ class Acer():
         # reshape stuff correctly
         obs = obs.reshape(runner.batch_ob_shape)
         # print("obs shape {} , next obs shape {} ".format(np.shape(obs),np.shape(next_states)))
-        next_states = next_states.reshape(runner.batch_ob_shape)
+        # next_states = next_states.reshape(runner.batch_ob_shape)
         
         actions = actions.reshape([runner.nbatch])
         rewards = rewards.reshape([runner.nbatch])
@@ -284,8 +284,8 @@ class Acer():
 
         if self.curiosity:
             icm_actions = icm_actions.reshape([runner.batch_ob_shape[0]])
-            # if on_policy :
-            #     next_states = next_states.reshape(runner.batch_ob_shape)
+            if on_policy :
+                next_states = next_states.reshape(runner.batch_ob_shape)
 
             names_ops, values_ops = model.train(obs, actions, rewards, dones, mus, model.initial_state, masks, steps , on_policy=on_policy , next_states = next_states, icm_actions=icm_actions )
 
