@@ -218,10 +218,10 @@ class Model(object):
         def train(obs, actions, rewards, dones, mus, states, masks, steps,on_policy,next_states,icm_actions):
             cur_lr = lr.value_steps(steps)
 
-            if on_policy == False : print("its off policy")
+            # if on_policy == False : print("its off policy")
 
             if icm is None or on_policy == False: # running when its off-policy
-                print("Conditional off policy")
+                # print("Conditional off policy")
                 run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads]
                 names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
                              'norm_grads']
@@ -256,7 +256,7 @@ class Model(object):
                 
             else :
                 td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr}
-                print("off policy td map")
+                # print("off policy td map")
                 # print("td Map {} \n run_ops {}".format( td_map,run_ops ))
 
             
