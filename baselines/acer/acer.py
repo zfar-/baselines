@@ -241,9 +241,10 @@ class Model(object):
                 td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr , 
                  icm.state_:obs, icm.next_state_ : next_states , icm.action_ : icm_actions}
             else :
+                td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr}
                 print("off policy td map")
                 print("td Map {} \n run_ops {}".format( td_map,run_ops ))
-                td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr}
+
             
             if states is not None:
                 td_map[train_model.S] = states
