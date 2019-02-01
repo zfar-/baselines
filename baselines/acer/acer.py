@@ -236,7 +236,7 @@ class Model(object):
 
             # on and off policy setting parameter
 
-            if icm is not None and on_policy  :
+            if icm is not None and on_policy == True:
                 # print("with ICM ")
                 td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr , 
                  icm.state_:obs, icm.next_state_ : next_states , icm.action_ : icm_actions}
