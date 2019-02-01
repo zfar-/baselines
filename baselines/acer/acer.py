@@ -182,8 +182,11 @@ class Model(object):
             grads, norm_grads = tf.clip_by_global_norm(grads, max_grad_norm)
         grads = list(zip(grads, params))
 
-        if icm is not None :
-            grads = grads + icm.pred_grads_and_vars
+        # >
+        # if icm is not None :
+        #     grads = grads + icm.pred_grads_and_vars
+        # # print("Final Gradeints \n ",grads)
+        # > 
 
         trainer = tf.train.RMSPropOptimizer(learning_rate=LR, decay=rprop_alpha, epsilon=rprop_epsilon)
         _opt_op = trainer.apply_gradients(grads)
@@ -223,10 +226,17 @@ class Model(object):
                 names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
                              'norm_grads']
             else :
-                run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads , 
-                icm.forw_loss , icm.inv_loss, icm.icm_loss]
+
+                run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads]
                 names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
-                         'norm_grads' ,'icm.forw_loss' , 'icm.inv_loss', 'icm.icm_loss' ]
+                             'norm_grads']
+
+                # > its the two optimizers together 
+                # run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads , 
+                # icm.forw_loss , icm.inv_loss, icm.icm_loss]
+                # names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
+                #          'norm_grads' ,'icm.forw_loss' , 'icm.inv_loss', 'icm.icm_loss' ]
+                # # >
 
             if trust_region:
                 run_ops = run_ops + [norm_grads_q, norm_grads_policy, avg_norm_grads_f, avg_norm_k, avg_norm_g, avg_norm_k_dot_g,
@@ -238,12 +248,16 @@ class Model(object):
 
             if icm is not None and on_policy == True:
                 # print("with ICM ")
-                td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr , 
-                 icm.state_:obs, icm.next_state_ : next_states , icm.action_ : icm_actions}
+                # td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr , 
+                #  icm.state_:obs, icm.next_state_ : next_states , icm.action_ : icm_actions}
+                #  print(" icm_next_state type {} shape {} :: icm actions type {} shape {}".format(np.shape(icm.next_states) , ))
+                forwardLoss , InverseLoss , icmLoss , _ = icm.train_curiosity_model(obs,next_states,icm_actions)
+                td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr}
+                
             else :
                 td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr}
                 print("off policy td map")
-                print("td Map {} \n run_ops {}".format( td_map,run_ops ))
+                # print("td Map {} \n run_ops {}".format( td_map,run_ops ))
 
             
             if states is not None:
@@ -252,7 +266,13 @@ class Model(object):
                 td_map[polyak_model.S] = states
                 td_map[polyak_model.M] = masks
 
-            return names_ops, sess.run(run_ops, td_map)[1:]   # strip off _train
+            if on_policy :
+                updated_ops = names_ops + ['forwardLoss' , 'InverseLoss' ,'icmLoss']
+
+                return updated_ops, sess.run(run_ops, td_map)[1:] + [forwardLoss , InverseLoss , icmLoss  ]   # strip off _train
+            if on_policy == False:
+                return names_ops, sess.run(run_ops, td_map)[1:]
+
 
         def _step(observation, **kwargs):
             return step_model._evaluate([step_model.action, step_model_p, step_model.state], observation, **kwargs)

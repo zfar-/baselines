@@ -113,8 +113,8 @@ class Runner(AbstractEnvRunner):
         # shapes are now [nenv, nsteps, []]
         # When pulling from buffer, arrays will now be reshaped in place, preventing a deep copy.
 
-        # print("sent parameters mb_obs {} next_obs {} mb_actions {} mb_rewards {} , mb_icm_rewards {}  ".format( 
-        #     mb_obs.shape, mb_next_states.shape , mb_actions.shape, mb_rewards.shape , icm_testing_rewards.shape))
+        # print("sent parameters \n mb_obs {} next_obs {} mb_actions {} mb_rewards {} , mb_icm_actions {}  ".format( 
+        #     mb_obs.shape, mb_next_states.shape , mb_actions.shape, mb_rewards.shape , icm_actions.shape))
 
 
         return enc_obs, mb_obs, mb_actions, mb_rewards, mb_mus, mb_dones, mb_masks, mb_next_states, icm_actions
