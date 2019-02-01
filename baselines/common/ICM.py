@@ -105,20 +105,20 @@ class ICM(object):
 
         # print("\n\nTrainable variables \n ",icm_params)
         # # 2. Build our trainer
-        # self.icm_trainer = MpiAdamOptimizer(MPI.COMM_WORLD, learning_rate=1e-4, epsilon=1e-5)
+        self.icm_trainer = MpiAdamOptimizer(MPI.COMM_WORLD, learning_rate=1e-4, epsilon=1e-5)
         # # 3. Calculate the gradients
-        # icm_grads_and_var = self.icm_trainer.compute_gradients(self.icm_loss, self.icm_params)
+        icm_grads_and_var = self.icm_trainer.compute_gradients(self.icm_loss, self.icm_params)
         # # t_grads_and_var = tf.gradients()
-        # icm_grads, icm_var = zip(*icm_grads_and_var)
+        icm_grads, icm_var = zip(*icm_grads_and_var)
 
-        # if max_grad_norm is not None:
+        if max_grad_norm is not None:
         #     # Clip the gradients (normalize)
-        #     icm_grads, icm__grad_norm = tf.clip_by_global_norm(icm_grads, max_grad_norm)
-        # icm_grads_and_var= list(zip(icm_grads, icm_var))
+            icm_grads, icm__grad_norm = tf.clip_by_global_norm(icm_grads, max_grad_norm)
+        icm_grads_and_var= list(zip(icm_grads, icm_var))
         # # zip aggregate each gradient with parameters associated
         # # For instance zip(ABCD, xyza) => Ax, By, Cz, Da
 
-        # self._icm_train = self.icm_trainer.apply_gradients(icm_grads_and_var)
+        self._icm_train = self.icm_trainer.apply_gradients(icm_grads_and_var)
 
 
 
