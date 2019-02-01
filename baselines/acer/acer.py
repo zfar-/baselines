@@ -218,10 +218,11 @@ class Model(object):
             if on_policy == False : print("its off policy")
 
             if icm is None or on_policy == False: # running when its off-policy
+                print("Conditional off policy")
                 run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads]
                 names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
                              'norm_grads']
-            else :
+            elif :
                 run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads , 
                 icm.forw_loss , icm.inv_loss, icm.icm_loss]
                 names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
@@ -248,7 +249,11 @@ class Model(object):
                 td_map[polyak_model.S] = states
                 td_map[polyak_model.M] = masks
 
-            return names_ops, sess.run(run_ops, td_map)[1:]  # strip off _train
+            if on_policy :
+                return names_ops, sess.run(run_ops, td_map)[1:]
+            else :
+                returnnames_ops, sess.run(run_ops, td_map)[1:]
+            return   # strip off _train
 
         def _step(observation, **kwargs):
             return step_model._evaluate([step_model.action, step_model_p, step_model.state], observation, **kwargs)
