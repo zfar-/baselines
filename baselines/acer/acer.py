@@ -236,7 +236,7 @@ class Model(object):
 
             # on and off policy setting parameter
 
-            if icm is not None :
+            if icm is not None and on_policy  :
                 # print("with ICM ")
                 td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr , 
                  icm.state_:obs, icm.next_state_ : next_states , icm.action_ : icm_actions}
@@ -249,10 +249,7 @@ class Model(object):
                 td_map[polyak_model.S] = states
                 td_map[polyak_model.M] = masks
 
-            if on_policy :
-                return names_ops, sess.run(run_ops, td_map)[1:]
-            else :
-                return names_ops, sess.run(run_ops, td_map)[1:]   # strip off _train
+            return names_ops, sess.run(run_ops, td_map)[1:]   # strip off _train
 
         def _step(observation, **kwargs):
             return step_model._evaluate([step_model.action, step_model_p, step_model.state], observation, **kwargs)
