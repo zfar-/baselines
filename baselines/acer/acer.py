@@ -252,8 +252,7 @@ class Model(object):
             if on_policy :
                 return names_ops, sess.run(run_ops, td_map)[1:]
             else :
-                returnnames_ops, sess.run(run_ops, td_map)[1:]
-            return   # strip off _train
+                return names_ops, sess.run(run_ops, td_map)[1:]   # strip off _train
 
         def _step(observation, **kwargs):
             return step_model._evaluate([step_model.action, step_model_p, step_model.state], observation, **kwargs)
