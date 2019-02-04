@@ -103,6 +103,16 @@ class Runner(AbstractEnvRunner):
         # >
         
         mb_rewards = np.asarray(mb_rewards, dtype=np.float32).swapaxes(1, 0)
+
+        if self.curiosity:  # r_e + discounted( r_i )
+            rffs = np.array([self.rff.update(rew) for rew in icm_testing_rewards.T])
+            rffs_mean, rffs_std, rffs_count = mpi_moments(rffs.ravel())
+            self.rff_rms.update_from_moments(rffs_mean, rffs_std ** 2, rffs_count)
+            rews = icm_testing_rewards / np.sqrt(self.rff_rms.var)
+
+            mb_rewards = rews + mb_rewards
+
+
         mb_mus = np.asarray(mb_mus, dtype=np.float32).swapaxes(1, 0)
 
         mb_dones = np.asarray(mb_dones, dtype=np.bool).swapaxes(1, 0)
@@ -113,8 +123,8 @@ class Runner(AbstractEnvRunner):
         # shapes are now [nenv, nsteps, []]
         # When pulling from buffer, arrays will now be reshaped in place, preventing a deep copy.
 
-        # print("sent parameters \n mb_obs {} next_obs {} mb_actions {} mb_rewards {} , mb_icm_actions {}  ".format( 
-        #     mb_obs.shape, mb_next_states.shape , mb_actions.shape, mb_rewards.shape , icm_actions.shape))
+        # print("sent parameters \n mb_obs {} next_obs {} mb_actions {} mb_rewards {} , mb_icm_actions {} , icm_testing_rewards {} ".format( 
+            # mb_obs.shape, mb_next_states.shape , mb_actions.shape, mb_rewards.shape , icm_actions.shape , icm_testing_rewards.shape) )
 
 
         return enc_obs, mb_obs, mb_actions, mb_rewards, mb_mus, mb_dones, mb_masks, mb_next_states, icm_actions
