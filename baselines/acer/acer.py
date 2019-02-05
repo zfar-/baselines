@@ -216,20 +216,21 @@ class Model(object):
 
 
         def train(obs, actions, rewards, dones, mus, states, masks, steps,on_policy,next_states,icm_actions):
+            print("is train called and icm ",icm)
             cur_lr = lr.value_steps(steps)
 
             # if on_policy == False : print("its off policy")
 
-            if icm is None or on_policy == False: # running when its off-policy
-                # print("Conditional off policy")
-                run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads]
-                names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
-                             'norm_grads']
-            else :
+            # if icm is None or on_policy == False: # running when its off-policy
+            #     # print("Conditional off policy")
+            #     run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads]
+            #     names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
+            #                  'norm_grads']
+            # else :
 
-                run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads]
-                names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
-                             'norm_grads']
+            run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads]
+            names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
+                         'norm_grads']
 
                 # > its the two optimizers together 
                 # run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads , 
@@ -266,7 +267,7 @@ class Model(object):
                 td_map[polyak_model.S] = states
                 td_map[polyak_model.M] = masks
 
-            if on_policy :
+            if on_policy == True and icm is not None :
                 updated_ops = names_ops + ['forwardLoss' , 'InverseLoss' ,'icmLoss']
 
                 return updated_ops, sess.run(run_ops, td_map)[1:] + [forwardLoss , InverseLoss , icmLoss  ]   # strip off _train
@@ -324,7 +325,7 @@ class Acer():
         dones = dones.reshape([runner.nbatch])
         masks = masks.reshape([runner.batch_ob_shape[0]])
 
-        if self.curiosity and on_policy:
+        if self.curiosity == True and on_policy == True:
             
             if on_policy :
                 icm_actions = icm_actions.reshape([runner.batch_ob_shape[0]])
@@ -332,7 +333,8 @@ class Acer():
 
             names_ops, values_ops = model.train(obs, actions, rewards, dones, mus, model.initial_state, masks, steps , on_policy=on_policy , next_states = next_states, icm_actions=icm_actions )
 
-        else :
+        elif self.curiosity == False :
+            print("Objects ")
             names_ops, values_ops = model.train(obs, actions, rewards, dones, mus, model.initial_state, masks, steps,on_policy=on_policy, next_states = None, icm_actions = None )
 
         if on_policy and (int(steps/runner.nbatch) % self.log_interval == 0):
@@ -343,6 +345,7 @@ class Acer():
             # For true episode rewards, see the monitor files in the log folder.
             logger.record_tabular("mean_episode_length", self.episode_stats.mean_length())
             logger.record_tabular("mean_episode_reward", self.episode_stats.mean_reward())
+            print("Name ops ",names_ops)
             for name, val in zip(names_ops, values_ops):
                 logger.record_tabular(name, float(val))
             logger.dump_tabular()

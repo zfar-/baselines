@@ -14,6 +14,7 @@ from baselines import logger
 from importlib import import_module
 
 from baselines.common.vec_env.vec_normalize import VecNormalize
+from baselines.common.atari_wrappers import MontezumaInfoWrapper
 
 try:
     from mpi4py import MPI
@@ -146,6 +147,8 @@ def build_env(args):
             print("ob_space {} and ac_space {} ".format(env.observation_space, env.action_space))
             env = VecFrameStack(env, frame_stack_size)
 
+
+            print("Real args " , args )
 
             print("After Frame stacking env would become " )
 

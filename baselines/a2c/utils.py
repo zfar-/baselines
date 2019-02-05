@@ -74,6 +74,24 @@ def fc(x, scope, nh, *, init_scale=1.0, init_bias=0.0):
         b = tf.get_variable("b", [nh], initializer=tf.constant_initializer(init_bias))
         return tf.matmul(x, w)+b
 
+# > action noise fully connected 
+# > function
+def fcNoisy(x, scope, nh, *, init_scale=1.0, init_bias=0.0,newbie=1.0,noise=0.0,sigma=0.0):
+    #newbie= tf.placeholder(tf.int32, name="newbie")
+    #print(newbie)
+    #noise= tf.placeholder(tf.int32, name="noise")
+    with tf.variable_scope(scope):
+        nin = x.get_shape()[1].value
+        randomlayer=tf.random_normal([nin, nh], dtype=tf.float32)
+        randomsaved=tf.get_variable("rs", [nin, nh], dtype=tf.float32)
+
+        w = tf.get_variable("w", [nin, nh], initializer=ortho_init(init_scale))
+        b = tf.get_variable("b", [nh], initializer=tf.constant_initializer(init_bias))
+
+        randomsaved =randomsaved.assign(tf.cond(newbie < 1.0 ,lambda: randomsaved , lambda: randomlayer ))
+        condrandom = tf.cond(noise < 1.0, lambda: tf.matmul(x, w)+b, lambda: tf.matmul(x, w+randomsaved*sigma)+b)
+        return condrandom
+
 def batch_to_seq(h, nbatch, nsteps, flat=False):
     if flat:
         h = tf.reshape(h, [nbatch, nsteps])

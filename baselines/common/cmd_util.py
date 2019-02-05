@@ -25,6 +25,7 @@ def make_vec_env(env_id, env_type, num_env, seed, wrapper_kwargs=None, start_ind
     if wrapper_kwargs is None: wrapper_kwargs = {}
     mpi_rank = MPI.COMM_WORLD.Get_rank() if MPI else 0
     seed = seed + 10000 * mpi_rank if seed is not None else None
+    
     def make_thunk(rank):
         return lambda: make_env(
             env_id=env_id,
@@ -43,9 +44,10 @@ def make_vec_env(env_id, env_type, num_env, seed, wrapper_kwargs=None, start_ind
         return DummyVecEnv([make_thunk(start_index)])
 
 
-def make_env(env_id, env_type, subrank=0, seed=None, reward_scale=1.0, gamestate=None, wrapper_kwargs={}):
+def make_env(env_id  , env_type, subrank=0, seed=None, reward_scale=1.0, gamestate=None, wrapper_kwargs={}):
     mpi_rank = MPI.COMM_WORLD.Get_rank() if MPI else 0
     if env_type == 'atari':
+        print("\n\nEnv ID ::  \n\n",env_id)
         env = make_atari(env_id)
     elif env_type == 'retro':
         import retro
@@ -60,7 +62,7 @@ def make_env(env_id, env_type, subrank=0, seed=None, reward_scale=1.0, gamestate
                   allow_early_resets=True)
 
     if env_type == 'atari':
-        env = wrap_deepmind(env, **wrapper_kwargs)
+        env = wrap_deepmind(env,env_id, **wrapper_kwargs)
     elif env_type == 'retro':
         env = retro_wrappers.wrap_deepmind_retro(env, **wrapper_kwargs)
 

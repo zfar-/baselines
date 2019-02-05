@@ -29,7 +29,7 @@ class Runner(AbstractEnvRunner):
         self.rff = RewardForwardFilter(self.gamma)
         self.rff_rms = RunningMeanStd()
 
-    def run(self):
+    def run(self, Sigma=0.01):
         # curiosity = True
         # curiosity = False
 
@@ -38,9 +38,21 @@ class Runner(AbstractEnvRunner):
         mb_states = self.states
         icm_testing_rewards = []
         for n in range(self.nsteps):
+            actions=None 
+            values=None
+            states=None
             # Given observations, take action and value (V(s))
             # We already have self.obs because Runner superclass run self.obs[:] = env.reset() on init
-            actions, values, states, _ = self.model.step(self.obs, S=self.states, M=self.dones)
+  
+            # actions, values, states, _ = self.model.step(self.obs, S=self.states, M=self.dones)
+
+            # > action noise step
+            if(n==0):
+                actions, values, states, _ = self.model.step(self.obs,Noise=1.0,Newbie=1.0,sigma=Sigma, S=self.states, M=self.dones)
+            else:
+                actions, values, states, _ = self.model.step(self.obs,Noise=1.0,Newbie=0.0,sigma=Sigma, S=self.states, M=self.dones)
+            # > action noise step
+
 
             # Append the experiences
             mb_obs.append(np.copy(self.obs))
@@ -123,7 +135,7 @@ class Runner(AbstractEnvRunner):
 
             # mb_rewards = rews
 
-            mb_rewards = rews # mb_rewards + rews
+            mb_rewards =  mb_rewards + rews
 
             # now clipping the reward (-1,1)
 
@@ -180,35 +192,46 @@ class Runner(AbstractEnvRunner):
 
         # mb_rewards_copy = mb_rewards
         
-        # if self.curiosity == True :
-        #     if self.gamma > 0.0:
-        #         # Discount/bootstrap off value fn
-        #         last_values = self.model.value(self.obs, S=self.states, M=self.dones).tolist()
-        #         for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
-        #             rewards = rewards.tolist()
-        #             dones = dones.tolist()
-        #             # if dones[-1] == 0:
-        #             rewards = discount_with_dones(rewards+[value], dones+[0], self.gamma)[:-1]
-        #             # else:
-        #             # rewards = discount_with_dones(rewards, dones, self.gamma)
+        if self.curiosity == True :
+            if self.gamma > 0.0:
+                # Discount/bootstrap off value fn
+                
+                # last_values = self.model.value(self.obs, S=self.states, M=self.dones).tolist()
 
-        #             mb_rewards[n] = rewards
-        # else :    
-        # # print(" Before discount_with_dones ")
-        # # print("Rewards " , mb_rewards)
+                # > action noise value function
+                last_values = self.model.value(self.obs,Noise=1.0,Newbie=1.0,sigma=Sigma, S=self.states, M=self.dones).tolist()
+                # >
 
-        # # print("Before rewards and values ")
-        # # print("Reward {} values {} ".format(mb_rewards , mb_values))
-        #     if self.gamma > 0.0:
-        #         # Discount/bootstrap off value fn
-        #         last_values = self.model.value(self.obs, S=self.states, M=self.dones).tolist()
-        #         for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
-        #             rewards = rewards.tolist()
-        #             dones = dones.tolist()
-        #             if dones[-1] == 0:
-        #                 rewards = discount_with_dones(rewards+[value], dones+[0], self.gamma)[:-1]
-        #             else:
-        #                 rewards = discount_with_dones(rewards, dones, self.gamma)
+                for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
+                    rewards = rewards.tolist()
+                    dones = dones.tolist()
+                    # > no end life, without end signal
+                    # if dones[-1] == 0:
+                    rewards = discount_with_dones(rewards+[value], dones+[0], self.gamma)[:-1]
+                    # else:
+                    # rewards = discount_with_dones(rewards, dones, self.gamma)
+
+                    mb_rewards[n] = rewards
+        else :    
+        # print(" Before discount_with_dones ")
+        # print("Rewards " , mb_rewards)
+
+        # print("Before rewards and values ")
+        # print("Reward {} values {} ".format(mb_rewards , mb_values))
+            if self.gamma > 0.0:
+                # Discount/bootstrap off value fn
+                
+                # last_values = self.model.value(self.obs, S=self.states, M=self.dones).tolist()
+                # > action noise value function
+                last_values = self.model.value(self.obs,Noise=1.0,Newbie=1.0,sigma=Sigma, S=self.states, M=self.dones).tolist()
+                # >                
+                for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
+                    rewards = rewards.tolist()
+                    dones = dones.tolist()
+                    if dones[-1] == 0:
+                        rewards = discount_with_dones(rewards+[value], dones+[0], self.gamma)[:-1]
+                    else:
+                        rewards = discount_with_dones(rewards, dones, self.gamma)
 
         #             mb_rewards[n] = rewards
 

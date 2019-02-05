@@ -5,7 +5,9 @@ from collections import deque
 import gym
 from gym import spaces
 import cv2
+from copy import copy
 cv2.ocl.setUseOpenCL(False)
+
 
 class NoopResetEnv(gym.Wrapper):
     def __init__(self, env, noop_max=30):
@@ -231,19 +233,70 @@ def make_atari(env_id, timelimit=True):
     env = MaxAndSkipEnv(env, skip=4)
     return env
 
-def  wrap_deepmind(env, episode_life=True, clip_rewards=True, frame_stack=False, scale=False):
+def  wrap_deepmind(env,env_id, episode_life=True, clip_rewards=True, frame_stack=False, scale=False):
     """Configure environment for DeepMind-style Atari.
     """
     if episode_life:
         env = EpisodicLifeEnv(env)
     if 'FIRE' in env.unwrapped.get_action_meanings():
         env = FireResetEnv(env)
-    env = WarpFrame(env)
+    env = WarpFrame(env) #preprocess 84,84
     if scale:
         env = ScaledFloatFrame(env)
     if clip_rewards:
         env = ClipRewardEnv(env)
     if frame_stack:
-        env = FrameStack(env, 4)
+        env = FrameStack(env, 4) # yes 
+    print(" Env args  type {} args {}".format(type(env) , env ))
+    if 'Montezuma' in env_id:
+        env = MontezumaInfoWrapper(env)
     return env
 
+
+def unwrap(env):
+    if hasattr(env, "unwrapped"):
+        return env.unwrapped
+    elif hasattr(env, "env"):
+        return unwrap(env.env)
+    elif hasattr(env, "leg_env"):
+        return unwrap(env.leg_env)
+    else:
+        return env
+
+
+class MontezumaInfoWrapper(gym.Wrapper):
+    ram_map = {
+        "room": dict(
+            index=3,
+        ),
+        "x": dict(
+            index=42,
+        ),
+        "y": dict(
+            index=43,
+        ),
+    }
+
+    def __init__(self, env):
+        # print("\n\nits called ")
+        super(MontezumaInfoWrapper, self).__init__(env)
+        self.visited = set()
+        self.visited_rooms = set()
+
+    def step(self, action):
+        obs, rew, done, info = self.env.step(action)
+        ram_state = unwrap(self.env).ale.getRAM()
+        for name, properties in MontezumaInfoWrapper.ram_map.items():
+            info[name] = ram_state[properties['index']]
+        pos = (info['x'], info['y'], info['room'])
+        self.visited.add(pos)
+        self.visited_rooms.add(info["room"])
+        if done:
+            info['mz_episode'] = dict(pos_count=len(self.visited),
+                                      visited_rooms=copy(self.visited_rooms))
+            self.visited.clear()
+            self.visited_rooms.clear()
+        return obs, rew, done, info
+
+    def reset(self):
+        return self.env.reset()

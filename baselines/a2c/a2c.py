@@ -113,8 +113,8 @@ class Model(object):
             # m , s = get_mean_and_std(icm_adv)
 
             # > adv Normaliztion
-            m , s = get_mean_and_std(advs)
-            advs = (advs - m) / (s + 1e-7)
+            # m , s = get_mean_and_std(advs)
+            # advs = (advs - m) / (s + 1e-7)
 
 
 
@@ -143,13 +143,21 @@ class Model(object):
 
             if icm is None :
 
-                td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr}
+                # td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr}
+                # > action noise td_map
+                td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr,train_model.noise:0.0,train_model.newbie:1.0,train_model.Sigma:0.0}
+            
             else :
                 # print("curiosity Td Map ")
                 print(" obs {} , next obs {} , actions  {} ".format(np.shape(obs) , np.shape(next_obs),
                     np.shape(actions)))
+
+                # > action noise td_map 
+                # td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr , 
+                # icm.state_:obs, icm.next_state_ : next_obs , icm.action_ : actions}
+                # > action noise td_map
                 td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr , 
-                icm.state_:obs, icm.next_state_ : next_obs , icm.action_ : actions }# , icm.R :rewards }
+                icm.state_:obs, icm.next_state_ : next_obs , icm.action_ : actions, train_model.noise:0.0,train_model.newbie:1.0,train_model.Sigma:0.0 }# , icm.R :rewards }
 
 
 
@@ -186,6 +194,15 @@ class Model(object):
         self.load = functools.partial(tf_util.load_variables, sess=sess)
         tf.global_variables_initializer().run(session=sess)
 
+
+
+# > action noise sigma 
+def sigmaUpdate( sigma,condition=0,alpha=1.01):
+    if condition==1:
+        return sigma*alpha
+    else:
+        return sigma/alpha
+# > 
 
 def learn(
     network,
@@ -300,6 +317,7 @@ def learn(
 
     # Calculate the batch_size
     nbatch = nenvs*nsteps
+    sigma = 0.01
 
     # Start total timer
     tstart = time.time()
@@ -307,7 +325,10 @@ def learn(
     for update in range(1, total_timesteps//nbatch+1):
         # Get mini batch of experiences
         # print("Update step : ",update)
-        obs, states, rewards, masks, actions, values, next_ob = runner.run() # ,icm_rewards,cumulative_dicounted_icm = runner.run()
+
+        if update > 1:
+            sigma=sigmaUpdate(condition=0,sigma=sigma)
+        obs, states, rewards, masks, actions, values, next_ob = runner.run(Sigma=sigma) # ,icm_rewards,cumulative_dicounted_icm = runner.run()
 
         # > now here we will do the reward normalization 
 
