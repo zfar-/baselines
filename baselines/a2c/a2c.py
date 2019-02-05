@@ -149,8 +149,8 @@ class Model(object):
             
             else :
                 # print("curiosity Td Map ")
-                print(" obs {} , next obs {} , actions  {} ".format(np.shape(obs) , np.shape(next_obs),
-                    np.shape(actions)))
+                # print(" obs {} , next obs {} , actions  {} ".format(np.shape(obs) , np.shape(next_obs),
+                    # np.shape(actions)))
 
                 # > action noise td_map 
                 # td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr , 
