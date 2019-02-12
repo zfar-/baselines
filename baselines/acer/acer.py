@@ -61,6 +61,8 @@ class Model(object):
                  rprop_alpha, rprop_epsilon, total_timesteps, lrschedule,
                  c, trust_region, alpha, delta, icm):
 
+        print("\n:::ACER Model Called:::\n")
+
         sess = get_session()
         nact = ac_space.n
         nbatch = nenvs * nsteps
@@ -199,6 +201,7 @@ class Model(object):
 
         # Ops/Summaries to run, and their names for logging
         if icm is None :
+            print("\n\n :: When ICM is none ")
             run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads]
             names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
                          'norm_grads']
@@ -216,7 +219,7 @@ class Model(object):
 
 
         def train(obs, actions, rewards, dones, mus, states, masks, steps,on_policy,next_states,icm_actions):
-            print("is train called and icm ",icm)
+            # print("received args \n obs {} , actuions {} , rewards {} , dones {} , mus {} , states {} , masks {} , steps {} " )
             cur_lr = lr.value_steps(steps)
 
             # if on_policy == False : print("its off policy")
@@ -256,11 +259,15 @@ class Model(object):
                 td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr}
                 
             else :
+
                 td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr}
                 # print("off policy td map")
                 # print("td Map {} \n run_ops {}".format( td_map,run_ops ))
+            if icm is None :
+                # print("ICM none td Map ")
+                td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr}
 
-            
+
             if states is not None:
                 td_map[train_model.S] = states
                 td_map[train_model.M] = masks
@@ -272,6 +279,9 @@ class Model(object):
 
                 return updated_ops, sess.run(run_ops, td_map)[1:] + [forwardLoss , InverseLoss , icmLoss  ]   # strip off _train
             if on_policy == False:
+                return names_ops, sess.run(run_ops, td_map)[1:]
+            else :
+                # print("function that is  called when ICM is none ")
                 return names_ops, sess.run(run_ops, td_map)[1:]
 
 
@@ -445,14 +455,15 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
 
         runner = Runner(env=env, model=model, nsteps=nsteps, icm=icm , gamma=gamma , curiosity=curiosity)
     else :
+        print("No ICM ")
         icm = None
 
         model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nenvs=nenvs, nsteps=nsteps,
                       ent_coef=ent_coef, q_coef=q_coef, gamma=gamma,
                       max_grad_norm=max_grad_norm, lr=lr, rprop_alpha=rprop_alpha, rprop_epsilon=rprop_epsilon,
                       total_timesteps=total_timesteps, lrschedule=lrschedule, c=c,
-                      trust_region=trust_region, alpha=alpha, delta=delta , icm = None)
-        runner = Runner(env=env, model=model, nsteps=nsteps , gamma=gamma ,curiosity=False ,icm = None)
+                      trust_region=trust_region, alpha=alpha, delta=delta , icm = icm)
+        runner = Runner(env=env, model=model, nsteps=nsteps , gamma=gamma ,curiosity=False ,icm = icm)
 
 
     if replay_ratio > 0:
