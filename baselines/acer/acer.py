@@ -344,7 +344,7 @@ class Acer():
             names_ops, values_ops = model.train(obs, actions, rewards, dones, mus, model.initial_state, masks, steps , on_policy=on_policy , next_states = next_states, icm_actions=icm_actions )
 
         elif self.curiosity == False :
-            print("Objects ")
+            # print("Objects ")
             names_ops, values_ops = model.train(obs, actions, rewards, dones, mus, model.initial_state, masks, steps,on_policy=on_policy, next_states = None, icm_actions = None )
 
         if on_policy and (int(steps/runner.nbatch) % self.log_interval == 0):

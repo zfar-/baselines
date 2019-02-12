@@ -63,16 +63,16 @@ class CategoricalPdType(PdType):
         return CategoricalPd
     
     # > correct version of action noise
-    def pdfromlatent(self, latent_vector, init_scale=1.0, init_bias=0.0,Newbie=1.0,Noise=0.0,sigma=0.0):
-        pdparam = fcNoisy(latent_vector, 'pi', self.ncat, init_scale=init_scale, init_bias=init_bias,newbie=Newbie,noise=Noise,sigma=sigma)
-        return self.pdfromflat(pdparam), pdparam
+    # def pdfromlatent(self, latent_vector, init_scale=1.0, init_bias=0.0,Newbie=1.0,Noise=0.0,sigma=0.0):
+    #     pdparam = fcNoisy(latent_vector, 'pi', self.ncat, init_scale=init_scale, init_bias=init_bias,newbie=Newbie,noise=Noise,sigma=sigma)
+    #     return self.pdfromflat(pdparam), pdparam
     # > correct version of action noise
 
-    # def pdfromlatent(self, latent_vector, init_scale=1.0, init_bias=0.0):
-    #     # > action noise fc layer
-    #     pdparam = fcNoisy(latent_vector, 'pi', self.ncat, init_scale=init_scale, init_bias=init_bias,newbie=Newbie,noise=Noise,sigma=sigma)
-    #     # pdparam = _matching_fc(latent_vector, 'pi', self.ncat, init_scale=init_scale, init_bias=init_bias)
-    #     return self.pdfromflat(pdparam), pdparam
+    def pdfromlatent(self, latent_vector, init_scale=1.0, init_bias=0.0):
+        # > action noise fc layer
+        # pdparam = fcNoisy(latent_vector, 'pi', self.ncat, init_scale=init_scale, init_bias=init_bias,newbie=Newbie,noise=Noise,sigma=sigma)
+        pdparam = _matching_fc(latent_vector, 'pi', self.ncat, init_scale=init_scale, init_bias=init_bias)
+        return self.pdfromflat(pdparam), pdparam
 
     def param_shape(self):
         return [self.ncat]
