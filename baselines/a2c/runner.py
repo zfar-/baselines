@@ -240,7 +240,7 @@ class Runner(AbstractEnvRunner):
                     else:
                         rewards = discount_with_dones(rewards, dones, self.gamma)
 
-        #             mb_rewards[n] = rewards
+                    mb_rewards[n] = rewards
 
 
 
