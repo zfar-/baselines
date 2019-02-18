@@ -45,17 +45,17 @@ class PolicyWithValue(object):
 
         # >
         # action noise placeholders 
-        # self.noise=tf.placeholder(tf.float32, name="noise")
-        # self.newbie=tf.placeholder(tf.float32, name="newbie")
-        # self.Sigma=tf.placeholder(tf.float32, name="Sigma")
-        # # >
+        self.noise=tf.placeholder(tf.float32, name="noise")
+        self.newbie=tf.placeholder(tf.float32, name="newbie")
+        self.Sigma=tf.placeholder(tf.float32, name="Sigma")
+        # >
 
         # Based on the action space, will select what probability distribution type
         self.pdtype = make_pdtype(env.action_space)
 
-        self.pd, self.pi = self.pdtype.pdfromlatent(latent, init_scale=0.01)
+        # self.pd, self.pi = self.pdtype.pdfromlatent(latent, init_scale=0.01)
         # > Noise pdffrom latent
-        # self.pd, self.pi = self.pdtype.pdfromlatent(latent, init_scale=0.01,Newbie=self.newbie,Noise=self.noise,sigma=self.Sigma)
+        self.pd, self.pi = self.pdtype.pdfromlatent(latent, init_scale=0.01,Newbie=self.newbie,Noise=self.noise,sigma=self.Sigma)
         # >
 
         # Take an action
@@ -71,7 +71,7 @@ class PolicyWithValue(object):
             self.vf = self.q
         else:
             # > action noise 
-            # self.vf = fcNoisy(vf_latent, 'vf', 1,newbie=self.newbie,noise=self.noise,sigma=self.Sigma)
+            self.vf = fcNoisy(vf_latent, 'vf', 1,newbie=self.newbie,noise=self.noise,sigma=self.Sigma)
             # self.vf = fc(vf_latent, 'vf', 1)
             self.vf = self.vf[:,0]
 
@@ -80,62 +80,13 @@ class PolicyWithValue(object):
     # > 1. _evaluate 
     # > 2. step 
     # > 3. value
-    # def _evaluate(self, variables, observation,Noise=0.0,Newbie=0.0,sigma=0.0, **extra_feed):
-    #     sess = self.sess or tf.get_default_session()
-    #     feed_dict = {self.X: adjust_shape(self.X, observation),
-    #     self.noise:Noise,
-    #     self.newbie:Newbie,
-    #     self.Sigma:sigma}
+    def _evaluate(self, variables, observation,Noise=0.0,Newbie=0.0,sigma=0.0, **extra_feed):
+        sess = self.sess or tf.get_default_session()
+        feed_dict = {self.X: adjust_shape(self.X, observation),
+        self.noise:Noise,
+        self.newbie:Newbie,
+        self.Sigma:sigma}
 
-    #     for inpt_name, data in extra_feed.items():
-    #         if inpt_name in self.__dict__.keys():
-    #             inpt = self.__dict__[inpt_name]
-    #             if isinstance(inpt, tf.Tensor) and inpt._op.type == 'Placeholder':
-    #                 feed_dict[inpt] = adjust_shape(inpt, data)
-
-    #     return sess.run(variables, feed_dict)
-
-    # def step(self, observation,Noise=0.0,Newbie=0.0,sigma=0.0, **extra_feed):
-    #     """
-    #     Compute next action(s) given the observation(s)
-
-    #     Parameters:
-    #     ----------
-
-    #     observation     observation data (either single or a batch)
-
-    #     **extra_feed    additional data such as state or mask (names of the arguments should match the ones in constructor, see __init__)
-
-    #     Returns:
-    #     -------
-    #     (action, value estimate, next state, negative log likelihood of the action under current policy parameters) tuple
-    #     """
-
-    #     a, v, state, neglogp = self._evaluate([self.action, self.vf, self.state, self.neglogp], observation,Noise,Newbie,sigma, **extra_feed)
-    #     if state.size == 0:
-    #         state = None
-    #     return a, v, state, neglogp
-
-    # def value(self, ob,Noise=0.0,Newbie=0.0,sigma=0.0, *args, **kwargs):
-    #     """
-    #     Compute value estimate(s) given the observation(s)
-
-    #     Parameters:
-    #     ----------
-
-    #     observation     observation data (either single or a batch)
-
-    #     **extra_feed    additional data such as state or mask (names of the arguments should match the ones in constructor, see __init__)
-
-    #     Returns:
-    #     -------
-    #     value estimate
-    #     """
-    #     return self._evaluate(self.vf, ob,Noise,Newbie,sigma, *args, **kwargs)
-
-    def _evaluate(self, variables, observation, **extra_feed):
-        sess = self.sess
-        feed_dict = {self.X: adjust_shape(self.X, observation)}
         for inpt_name, data in extra_feed.items():
             if inpt_name in self.__dict__.keys():
                 inpt = self.__dict__[inpt_name]
@@ -144,7 +95,7 @@ class PolicyWithValue(object):
 
         return sess.run(variables, feed_dict)
 
-    def step(self, observation, **extra_feed):
+    def step(self, observation,Noise=0.0,Newbie=0.0,sigma=0.0, **extra_feed):
         """
         Compute next action(s) given the observation(s)
 
@@ -160,12 +111,12 @@ class PolicyWithValue(object):
         (action, value estimate, next state, negative log likelihood of the action under current policy parameters) tuple
         """
 
-        a, v, state, neglogp = self._evaluate([self.action, self.vf, self.state, self.neglogp], observation, **extra_feed)
+        a, v, state, neglogp = self._evaluate([self.action, self.vf, self.state, self.neglogp], observation,Noise,Newbie,sigma, **extra_feed)
         if state.size == 0:
             state = None
         return a, v, state, neglogp
 
-    def value(self, ob, *args, **kwargs):
+    def value(self, ob,Noise=0.0,Newbie=0.0,sigma=0.0, *args, **kwargs):
         """
         Compute value estimate(s) given the observation(s)
 
@@ -180,7 +131,56 @@ class PolicyWithValue(object):
         -------
         value estimate
         """
-        return self._evaluate(self.vf, ob, *args, **kwargs)
+        return self._evaluate(self.vf, ob,Noise,Newbie,sigma, *args, **kwargs)
+
+    # def _evaluate(self, variables, observation, **extra_feed):
+    #     sess = self.sess
+    #     feed_dict = {self.X: adjust_shape(self.X, observation)}
+    #     for inpt_name, data in extra_feed.items():
+    #         if inpt_name in self.__dict__.keys():
+    #             inpt = self.__dict__[inpt_name]
+    #             if isinstance(inpt, tf.Tensor) and inpt._op.type == 'Placeholder':
+    #                 feed_dict[inpt] = adjust_shape(inpt, data)
+
+    #     return sess.run(variables, feed_dict)
+
+    # def step(self, observation, **extra_feed):
+    #     """
+    #     Compute next action(s) given the observation(s)
+
+    #     Parameters:
+    #     ----------
+
+    #     observation     observation data (either single or a batch)
+
+    #     **extra_feed    additional data such as state or mask (names of the arguments should match the ones in constructor, see __init__)
+
+    #     Returns:
+    #     -------
+    #     (action, value estimate, next state, negative log likelihood of the action under current policy parameters) tuple
+    #     """
+
+    #     a, v, state, neglogp = self._evaluate([self.action, self.vf, self.state, self.neglogp], observation, **extra_feed)
+    #     if state.size == 0:
+    #         state = None
+    #     return a, v, state, neglogp
+
+    # def value(self, ob, *args, **kwargs):
+    #     """
+    #     Compute value estimate(s) given the observation(s)
+
+    #     Parameters:
+    #     ----------
+
+    #     observation     observation data (either single or a batch)
+
+    #     **extra_feed    additional data such as state or mask (names of the arguments should match the ones in constructor, see __init__)
+
+    #     Returns:
+    #     -------
+    #     value estimate
+    #     """
+    #     return self._evaluate(self.vf, ob, *args, **kwargs)
 
     def save(self, save_path):
         tf_util.save_state(save_path, sess=self.sess)
@@ -261,4 +261,3 @@ def _normalize_clip_observation(x, clip_range=[-5.0, 5.0]):
     print(" Calcualted obv mean {} and std {} ".format(rms.mean,rms.std))
     norm_x = tf.clip_by_value((x - rms.mean) / rms.std, min(clip_range), max(clip_range))
     return norm_x, rms
-

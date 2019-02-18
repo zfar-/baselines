@@ -3,6 +3,17 @@ import numpy as np
 import tensorflow as tf
 from collections import deque
 
+
+import multiprocessing
+# import os
+import platform
+from functools import partial
+
+# import numpy as np
+# import tensorflow as tf
+from baselines.common.tf_util import normc_initializer
+from mpi4py import MPI
+
 def sample(logits):
     noise = tf.random_uniform(tf.shape(logits))
     return tf.argmax(logits - tf.log(-tf.log(noise)), 1)
@@ -34,6 +45,7 @@ def ortho_init(scale=1.0):
         return (scale * q[:shape[0], :shape[1]]).astype(np.float32)
     return _ortho_init
 
+
 def conv(x, scope, *, nf, rf, stride, pad='VALID', init_scale=1.0, data_format='NHWC', one_dim_bias=False):
     if data_format == 'NHWC':
         channel_ax = 3
@@ -62,6 +74,8 @@ def fc(x, scope, nh, *, init_scale=1.0, init_bias=0.0):
         b = tf.get_variable("b", [nh], initializer=tf.constant_initializer(init_bias))
         return tf.matmul(x, w)+b
 
+# > action noise fully connected 
+# > function
 def fcNoisy(x, scope, nh, *, init_scale=1.0, init_bias=0.0,newbie=1.0,noise=0.0,sigma=0.0):
     #newbie= tf.placeholder(tf.int32, name="newbie")
     #print(newbie)
@@ -159,6 +173,23 @@ def conv_to_fc(x):
     nh = np.prod([v.value for v in x.get_shape()[1:]])
     x = tf.reshape(x, [-1, nh])
     return x
+
+def get_mean_and_std(array):
+    comm = MPI.COMM_WORLD
+    task_id, num_tasks = comm.Get_rank(), comm.Get_size()
+    local_mean = np.array(np.mean(array))
+    sum_of_means = np.zeros((), dtype=np.float32)
+    comm.Allreduce(local_mean, sum_of_means, op=MPI.SUM)
+    mean = sum_of_means / num_tasks
+
+    n_array = array - mean
+    sqs = n_array ** 2
+    local_mean = np.array(np.mean(sqs))
+    sum_of_means = np.zeros((), dtype=np.float32)
+    comm.Allreduce(local_mean, sum_of_means, op=MPI.SUM)
+    var = sum_of_means / num_tasks
+    std = var ** 0.5
+    return mean, std
 
 def discount_with_dones(rewards, dones, gamma):
     discounted = []

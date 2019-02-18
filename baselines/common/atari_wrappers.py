@@ -249,6 +249,7 @@ def  wrap_deepmind(env,env_id, episode_life=True, clip_rewards=True, frame_stack
         env = FrameStack(env, 4) # yes 
     print(" Env args  type {} args {}".format(type(env) , env ))
     if 'Montezuma' in env_id:
+        print("Its Montezuma Env Type ")
         env = MontezumaInfoWrapper(env)
     return env
 
@@ -284,6 +285,7 @@ class MontezumaInfoWrapper(gym.Wrapper):
         self.visited_rooms = set()
 
     def step(self, action):
+        print("Montezuma Step ")
         obs, rew, done, info = self.env.step(action)
         ram_state = unwrap(self.env).ale.getRAM()
         for name, properties in MontezumaInfoWrapper.ram_map.items():
@@ -299,4 +301,5 @@ class MontezumaInfoWrapper(gym.Wrapper):
         return obs, rew, done, info
 
     def reset(self):
+        print("Montezuma Reset ")
         return self.env.reset()
