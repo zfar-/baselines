@@ -317,7 +317,12 @@ def learn(
 
     # Calculate the batch_size
     nbatch = nenvs*nsteps
+    
+    # > Adaptive Action Noise 
     sigma = 0.01
+    DPD=0.0
+    delta=0.0001
+    # > Adaptive Action Noise
 
     # Start total timer
     tstart = time.time()
@@ -328,7 +333,7 @@ def learn(
 
         if update > 1:
             sigma=sigmaUpdate(condition=0,sigma=sigma)
-        obs, states, rewards, masks, actions, values, next_ob = runner.run(Sigma=sigma) # ,icm_rewards,cumulative_dicounted_icm = runner.run()
+        obs, states, rewards, masks, actions, values, next_ob, DPD = runner.run(Sigma=sigma) # ,icm_rewards,cumulative_dicounted_icm = runner.run()
 
         # > now here we will do the reward normalization 
 

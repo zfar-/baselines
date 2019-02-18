@@ -37,6 +37,7 @@ class Runner(AbstractEnvRunner):
         mb_obs, mb_rewards, mb_actions, mb_values, mb_dones, mb_next_states = [],[],[],[],[],[]
         mb_states = self.states
         icm_testing_rewards = []
+        DPD = 0
         for n in range(self.nsteps):
             actions=None 
             values=None
@@ -46,12 +47,16 @@ class Runner(AbstractEnvRunner):
   
             # actions, values, states, _ = self.model.step(self.obs, S=self.states, M=self.dones)
 
-            # > action noise step
+            # > Adaptive action noise step
             if(n==0):
-                actions, values, states, _ = self.model.step(self.obs,Noise=1.0,Newbie=1.0,sigma=Sigma, S=self.states, M=self.dones)
+                actions, values, states,tmp, _ = self.model.step(self.obs,Noise=1.0,Newbie=1.0,sigma=Sigma, S=self.states, M=self.dones)
+            elif(n==(self.nsteps-1)):
+                actions, values, states,tmp, DPDarray = self.model.step(self.obs,Noise=1.0,Newbie=0.0,sigma=Sigma, S=self.states, M=self.dones)
+                # print(DPDarray[0])
+                DPD=DPDarray[0]
             else:
-                actions, values, states, _ = self.model.step(self.obs,Noise=1.0,Newbie=0.0,sigma=Sigma, S=self.states, M=self.dones)
-            # > action noise step
+                actions, values, states, tmp,_ = self.model.step(self.obs,Noise=1.0,Newbie=0.0,sigma=Sigma, S=self.states, M=self.dones)
+            # > Adaptive action noise step
 
 
             # Append the experiences
@@ -200,7 +205,7 @@ class Runner(AbstractEnvRunner):
 
                 # > action noise value function
                 last_values = self.model.value(self.obs,Noise=1.0,Newbie=1.0,sigma=Sigma, S=self.states, M=self.dones).tolist()
-                # >
+                # > action noise 
 
                 for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
                     rewards = rewards.tolist()
@@ -222,9 +227,11 @@ class Runner(AbstractEnvRunner):
                 # Discount/bootstrap off value fn
                 
                 # last_values = self.model.value(self.obs, S=self.states, M=self.dones).tolist()
+                
                 # > action noise value function
                 last_values = self.model.value(self.obs,Noise=1.0,Newbie=1.0,sigma=Sigma, S=self.states, M=self.dones).tolist()
-                # >                
+                # >  Action Noise 
+
                 for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
                     rewards = rewards.tolist()
                     dones = dones.tolist()
@@ -276,7 +283,7 @@ class Runner(AbstractEnvRunner):
         # print("Merged things after obs {} rewards {} actions {} masks {}".
             # format(np.shape(mb_obs) , np.shape(mb_rewards) , np.shape(mb_actions) , np.shape(mb_masks)))
 
-        return mb_obs, mb_states, mb_rewards, mb_masks, mb_actions, mb_values, mb_next_states # , mb_rews_icm, mb_new_updated_reward #, mb_new_rew
+        return mb_obs, mb_states, mb_rewards, mb_masks, mb_actions, mb_values, mb_next_states , DPD # , mb_rews_icm, mb_new_updated_reward #, mb_new_rew
 
 
 

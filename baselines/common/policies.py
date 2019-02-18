@@ -48,15 +48,17 @@ class PolicyWithValue(object):
         self.noise=tf.placeholder(tf.float32, name="noise")
         self.newbie=tf.placeholder(tf.float32, name="newbie")
         self.Sigma=tf.placeholder(tf.float32, name="Sigma")
-        # >
+        # > Adaptive Action Noise
 
         # Based on the action space, will select what probability distribution type
         self.pdtype = make_pdtype(env.action_space)
 
         # self.pd, self.pi = self.pdtype.pdfromlatent(latent, init_scale=0.01)
+        
         # > Noise pdffrom latent
-        self.pd, self.pi = self.pdtype.pdfromlatent(latent, init_scale=0.01,Newbie=self.newbie,Noise=self.noise,sigma=self.Sigma)
-        # >
+        self.pd, self.pi , self.pdNoNoise = self.pdtype.pdfromlatent(latent, init_scale=0.01,Newbie=self.newbie,Noise=self.noise,sigma=self.Sigma)
+        self.DPD=self.kl(tf.nn.softmax(self.pi) ,tf.nn.softmax(self.pdNoNoise)) #RAFAEL
+        # > Adaptive Noise 
 
         # Take an action
         self.action = self.pd.sample()
@@ -71,15 +73,23 @@ class PolicyWithValue(object):
             self.vf = self.q
         else:
             # > action noise 
-            self.vf = fcNoisy(vf_latent, 'vf', 1,newbie=self.newbie,noise=self.noise,sigma=self.Sigma)
+            self.vf,_ = fcNoisy(vf_latent, 'vf', 1,newbie=self.newbie,noise=self.noise,sigma=self.Sigma)
             # self.vf = fc(vf_latent, 'vf', 1)
             self.vf = self.vf[:,0]
 
 
+
     # > three function of action nosie 
+    # > Kl divergence 
     # > 1. _evaluate 
     # > 2. step 
     # > 3. value
+    
+    def kl(self,x, y):
+        X = tf.distributions.Categorical(probs=x)
+        Y = tf.distributions.Categorical(probs=y)
+        return tf.distributions.kl_divergence(X, Y)
+
     def _evaluate(self, variables, observation,Noise=0.0,Newbie=0.0,sigma=0.0, **extra_feed):
         sess = self.sess or tf.get_default_session()
         feed_dict = {self.X: adjust_shape(self.X, observation),
@@ -94,6 +104,8 @@ class PolicyWithValue(object):
                     feed_dict[inpt] = adjust_shape(inpt, data)
 
         return sess.run(variables, feed_dict)
+
+
 
     def step(self, observation,Noise=0.0,Newbie=0.0,sigma=0.0, **extra_feed):
         """
@@ -111,10 +123,10 @@ class PolicyWithValue(object):
         (action, value estimate, next state, negative log likelihood of the action under current policy parameters) tuple
         """
 
-        a, v, state, neglogp = self._evaluate([self.action, self.vf, self.state, self.neglogp], observation,Noise,Newbie,sigma, **extra_feed)
+        a, v, state, neglogp,DPD = self._evaluate([self.action, self.vf, self.state, self.neglogp,self.DPD], observation,Noise,Newbie,sigma, **extra_feed)
         if state.size == 0:
             state = None
-        return a, v, state, neglogp
+        return a, v, state, neglogp,DPD
 
     def value(self, ob,Noise=0.0,Newbie=0.0,sigma=0.0, *args, **kwargs):
         """
