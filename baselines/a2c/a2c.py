@@ -321,7 +321,7 @@ def learn(
     # > Adaptive Action Noise 
     sigma = 0.01
     DPD=0.0
-    delta=0.0001
+    delta=0.01
     # > Adaptive Action Noise
 
     # Start total timer
