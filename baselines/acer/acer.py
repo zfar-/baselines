@@ -256,16 +256,16 @@ class Model(object):
                 #  icm.state_:obs, icm.next_state_ : next_states , icm.action_ : icm_actions}
                 #  print(" icm_next_state type {} shape {} :: icm actions type {} shape {}".format(np.shape(icm.next_states) , ))
                 forwardLoss , InverseLoss , icmLoss , _ = icm.train_curiosity_model(obs,next_states,icm_actions)
-                td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr}
+                td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr, train_model.noise:0.0,train_model.newbie:1.0,train_model.Sigma:0.0}
                 
             else :
 
-                td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr}
+                td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr, train_model.noise:0.0,train_model.newbie:1.0,train_model.Sigma:0.0}
                 # print("off policy td map")
                 # print("td Map {} \n run_ops {}".format( td_map,run_ops ))
             if icm is None :
                 # print("ICM none td Map ")
-                td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr}
+                td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr, train_model.noise:0.0,train_model.newbie:1.0,train_model.Sigma:0.0}
 
 
             if states is not None:
@@ -286,6 +286,7 @@ class Model(object):
 
 
         def _step(observation, **kwargs):
+            print("Step is called")
             return step_model._evaluate([step_model.action, step_model_p, step_model.state], observation, **kwargs)
 
 
@@ -301,8 +302,10 @@ class Model(object):
         tf.global_variables_initializer().run(session=sess)
 
 
+
+
 class Acer():
-    def __init__(self, runner, model, buffer, log_interval, curiosity):
+    def __init__(self, runner, model, buffer, log_interval, curiosity,sigma):
         self.runner = runner
         self.model = model
         self.curiosity = curiosity
@@ -312,10 +315,12 @@ class Acer():
         self.episode_stats = EpisodeStats(runner.nsteps, runner.nenv)
         self.steps = None
 
+        self.sigma = sigma 
+
     def call(self, on_policy):
         runner, model, buffer, steps = self.runner, self.model, self.buffer, self.steps
         if on_policy:
-            enc_obs, obs, actions, rewards, mus, dones, masks, next_states, icm_actions = runner.run()
+            enc_obs, obs, actions, rewards, mus, dones, masks, next_states, icm_actions, DPD = runner.run(Sigma = self.sigma)
             self.episode_stats.feed(rewards, dones)
             if buffer is not None:
                 buffer.put(enc_obs, actions, rewards, mus, dones, masks)
@@ -359,6 +364,14 @@ class Acer():
             for name, val in zip(names_ops, values_ops):
                 logger.record_tabular(name, float(val))
             logger.dump_tabular()
+
+# > action noise sigma 
+def sigmaUpdate( sigma,condition=0,alpha=1.01):
+    if condition==1:
+        return sigma*alpha
+    else:
+        return sigma/alpha
+# > 
 
 
 def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=0.5, ent_coef=0.01,
@@ -441,6 +454,13 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
     ob_space = env.observation_space
     ac_space = env.action_space
     nstack = env.nstack
+
+    # > Adaptive Action Noise 
+    sigma = 0.01
+    DPD=0.0
+    delta=0.01
+    # > Adaptive Action Noise
+
 
     if curiosity :
         

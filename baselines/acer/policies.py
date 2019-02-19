@@ -7,6 +7,7 @@ from baselines.a2c.utils import fc, batch_to_seq, seq_to_batch, lstm, sample
 class AcerCnnPolicy(object):
 
     def __init__(self, sess, ob_space, ac_space, nenv, nsteps, nstack, reuse=False):
+        print("ACER CNN policy called ")
         nbatch = nenv * nsteps
         nh, nw, nc = ob_space.shape
         ob_shape = (nbatch, nh, nw, nc * nstack)

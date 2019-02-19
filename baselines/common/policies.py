@@ -84,7 +84,7 @@ class PolicyWithValue(object):
     # > 1. _evaluate 
     # > 2. step 
     # > 3. value
-    
+
     def kl(self,x, y):
         X = tf.distributions.Categorical(probs=x)
         Y = tf.distributions.Categorical(probs=y)
@@ -204,6 +204,7 @@ class PolicyWithValue(object):
 
 
 def build_policy(env, policy_network, value_network=None,  normalize_observations=False, estimate_q=False, **policy_kwargs):
+    print("Called Build policy")
     if isinstance(policy_network, str):
         network_type = policy_network
         policy_network = get_network_builder(network_type)(**policy_kwargs)

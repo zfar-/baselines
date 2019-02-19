@@ -321,7 +321,7 @@ def learn(
     # > Adaptive Action Noise 
     sigma = 0.01
     DPD=0.0
-    delta=0.01
+    delta=0.0001
     # > Adaptive Action Noise
 
     # Start total timer
@@ -332,7 +332,10 @@ def learn(
         # print("Update step : ",update)
 
         if update > 1:
-            sigma=sigmaUpdate(condition=0,sigma=sigma)
+            cond=0
+            if DPD < delta:
+                cond=1
+            sigma=sigmaUpdate(condition=cond,sigma=sigma)
         obs, states, rewards, masks, actions, values, next_ob, DPD = runner.run(Sigma=sigma) # ,icm_rewards,cumulative_dicounted_icm = runner.run()
 
         # > now here we will do the reward normalization 
