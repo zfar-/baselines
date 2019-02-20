@@ -79,7 +79,7 @@ class Model(object):
         with tf.variable_scope('acer_model', reuse=tf.AUTO_REUSE):
 
             step_model = policy(nbatch=nenvs, nsteps=1, observ_placeholder=step_ob_placeholder, sess=sess)
-            train_model = policy(nbatch=nbatch, nsteps=nsteps, observ_placeholder=train_ob_placeholder, sess=sess)
+            self.train_model = policy(nbatch=nbatch, nsteps=nsteps, observ_placeholder=train_ob_placeholder, sess=sess)
 
 
         params = find_trainable_variables("acer_model")
@@ -103,13 +103,13 @@ class Model(object):
 
         # action probability distributions according to train_model, polyak_model and step_model
         # poilcy.pi is probability distribution parameters; to obtain distribution that sums to 1 need to take softmax
-        train_model_p = tf.nn.softmax(train_model.pi)
+        train_model_p = tf.nn.softmax(self.train_model.pi)
         polyak_model_p = tf.nn.softmax(polyak_model.pi)
         step_model_p = tf.nn.softmax(step_model.pi)
-        v = tf.reduce_sum(train_model_p * train_model.q, axis = -1) # shape is [nenvs * (nsteps + 1)]
+        v = tf.reduce_sum(train_model_p * self.train_model.q, axis = -1) # shape is [nenvs * (nsteps + 1)]
 
         # strip off last step
-        f, f_pol, q = map(lambda var: strip(var, nenvs, nsteps), [train_model_p, polyak_model_p, train_model.q])
+        f, f_pol, q = map(lambda var: strip(var, nenvs, nsteps), [train_model_p, polyak_model_p, self.train_model.q])
         # Get pi and q values for actions taken
         f_i = get_by_index(f, A)
         q_i = get_by_index(q, A)
@@ -178,7 +178,20 @@ class Model(object):
             print(" Len of grads_policy {} , grads_q {}  , params {} ".
                 format((grads_policy), len(grads_q) , len(params)))
             
+            # grads = [pass if (g1 is None and g2 is None) else gradient_add(g1, g2, param) for (g1, g2, param) in zip(grads_policy, grads_q, params)]
             grads = [gradient_add(g1, g2, param) for (g1, g2, param) in zip(grads_policy, grads_q, params)]
+
+            # grads = []
+            # None_gradient = []
+            # for (g1, g2, param) in zip(grads_policy, grads_q, params) :
+            #     if g1 is None and g2 is None :
+            #         print("Noisene condition :",[g1,g2,param])
+            #         None_gradient.append(param)
+            #     else :
+            #         grads.append(gradient_add(g1, g2, param))
+                    
+
+
 
             avg_norm_grads_f = avg_norm(grads_f) * (nsteps * nenvs)
             norm_grads_q = tf.global_norm(grads_q)
@@ -189,6 +202,10 @@ class Model(object):
         if max_grad_norm is not None:
             grads, norm_grads = tf.clip_by_global_norm(grads, max_grad_norm)
         grads = list(zip(grads, params))
+
+        # grads += None_gradient
+        print("Final Gradiens " , grads)
+
 
         # >
         # if icm is not None :
@@ -277,7 +294,8 @@ class Model(object):
                 # print("td Map {} \n run_ops {}".format( td_map,run_ops ))
             if icm is None :
                 # print("ICM none td Map ")
-                td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr, train_model.noise:0.0,train_model.newbie:1.0,train_model.Sigma:0.0}
+                print("Its the td_map ")
+                td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr, self.train_model.noise:0.0,self.train_model.newbie:1.0,self.train_model.Sigma:0.0}
                 # td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr}
                 
 
@@ -296,6 +314,7 @@ class Model(object):
                 return names_ops, sess.run(run_ops, td_map)[1:]
             else :
                 # print("function that is  called when ICM is none ")
+                print("Its this session running ")
                 return names_ops, sess.run(run_ops, td_map)[1:]
 
 
@@ -335,17 +354,19 @@ class Acer():
 
     def call(self, on_policy,update):
         runner, model, buffer, steps = self.runner, self.model, self.buffer, self.steps
+        print("Acer Call with update {} steps {}".format(update , steps))
 
         # > Adaptive action noise  
         if update > 1:
             cond=0
             if self.dpd < self.delta:
                 cond=1
-            self.sigma=sigmaUpdate(condition=cond,sigma=sigma)
+            self.sigma=sigmaUpdate(condition=cond,sigma=self.sigma)
         # > Adaptive action noise 
         
         if on_policy:
-            enc_obs, obs, actions, rewards, mus, dones, masks, next_states, icm_actions,self.dpd = runner.run(self.sigma) # Here sigma for action noise
+            enc_obs, obs, actions, rewards, mus, dones, masks, next_states, icm_actions,self.dpd = runner.run(Sigma=self.sigma) # Here sigma for action noise
+            print("Self dpd ",self.dpd)
             self.episode_stats.feed(rewards, dones)
             if buffer is not None:
                 buffer.put(enc_obs, actions, rewards, mus, dones, masks)

@@ -19,6 +19,9 @@ from baselines.deepq.utils import ObservationInput
 from baselines.common.tf_util import get_session
 from baselines.deepq.models import build_q_func
 
+from baselines.common.ICM import ICM
+
+
 
 class ActWrapper(object):
     def __init__(self, act, act_params):
@@ -105,7 +108,7 @@ def learn(env,
           print_freq=100,
           checkpoint_freq=10000,
           checkpoint_path=None,
-          learning_starts=1000,
+          learning_starts=500, #1000
           gamma=1.0,
           target_network_update_freq=500,
           prioritized_replay=False,
@@ -116,6 +119,7 @@ def learn(env,
           param_noise=False,
           callback=None,
           load_path=None,
+          curiosity=False,
           **network_kwargs
             ):
     """Train a deepq model.
@@ -209,6 +213,14 @@ def learn(env,
         param_noise=param_noise
     )
 
+    # > Curiosity init
+    if curiosity :
+        make_icm = lambda : ICM (ob_space = observation_space , ac_space = env.action_space.n, max_grad_norm = 10 , beta = 0.2, icm_lr_scale = 0.5 )
+        icm = make_icm()
+    # > Curiosity init 
+
+
+
     act_params = {
         'make_obs_ph': make_obs_ph,
         'q_func': q_func,
@@ -279,8 +291,21 @@ def learn(env,
             action = act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
             env_action = action
             reset = False
+
             new_obs, rew, done, _ = env.step(env_action)
+    
+            if curiosity:
+                # print("Curiosity reward")
+                icm_reward =  icm.calculate_intrinsic_reward( np.reshape(obs, (1,84,84,4) ), np.reshape(new_obs,(1,84,84,4) ) , np.reshape(env_action, (1,) ) )
+                # print("Done" , icm_reward)
+
+            # > 
+
+            # > 
+
             # Store transition in the replay buffer.
+            # print(" shape of obs {}, new_obs {} , rewards {} , dones {}  , action {} ".format(
+                # np.shape(obs) , np.shape(new_obs) , rew  , done , np.shape(env_action)) ) 
             replay_buffer.add(obs, action, rew, new_obs, float(done))
             obs = new_obs
 
@@ -291,13 +316,20 @@ def learn(env,
                 reset = True
 
             if t > learning_starts and t % train_freq == 0:
+                # print("learning_starts at {} , greater than {} ".format(learning_starts , t))
                 # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
                 if prioritized_replay:
+                    # print("PrioritizedReplayBuffer True")
                     experience = replay_buffer.sample(batch_size, beta=beta_schedule.value(t))
                     (obses_t, actions, rewards, obses_tp1, dones, weights, batch_idxes) = experience
                 else:
                     obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(batch_size)
                     weights, batch_idxes = np.ones_like(rewards), None
+                
+                if curiosity:
+                    forwardLoss , InverseLoss , icmLoss , _ = icm.train_curiosity_model(obses_t,obses_tp1,actions)
+                    # print("Curiosity Training fwdloss {} , InverseLoss {} , icmLoss {}".format(
+                    #     forwardLoss,InverseLoss,icmLoss ))
                 td_errors = train(obses_t, actions, rewards, obses_tp1, dones, weights)
                 if prioritized_replay:
                     new_priorities = np.abs(td_errors) + prioritized_replay_eps
@@ -307,11 +339,18 @@ def learn(env,
                 # Update target network periodically.
                 update_target()
 
+            # if curiosity :
+            #     forwardLoss , InverseLoss , icmLoss , _ = icm.train_curiosity_model(obs,next_states,icm_actions)
+
             mean_100ep_reward = round(np.mean(episode_rewards[-101:-1]), 1)
             num_episodes = len(episode_rewards)
             if done and print_freq is not None and len(episode_rewards) % print_freq == 0:
                 logger.record_tabular("steps", t)
                 logger.record_tabular("episodes", num_episodes)
+                if curiosity == True and t % train_freq == 0 :
+                    logger.record_tabular("forwardLoss ", forwardLoss)
+                    logger.record_tabular("InverseLoss ", InverseLoss)
+                    logger.record_tabular("icmLoss ",icmLoss)
                 logger.record_tabular("mean 100 episode reward", mean_100ep_reward)
                 logger.record_tabular("% time spent exploring", int(100 * exploration.value(t)))
                 logger.dump_tabular()

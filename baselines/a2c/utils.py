@@ -314,14 +314,26 @@ def check_shape(ts,shapes):
 def avg_norm(t):
     return tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.square(t), axis=-1)))
 
+dummy_g1_pi = None 
+dummy_g2_q = None 
 def gradient_add(g1, g2, param):
     print(" gradient_add " )
     print([g1, g2, param.name])
     # assert (not (g1 is None and g2 is None)), param.name
+    if param.name == 'acer_model/pi/w:0':
+        dummy_g1_pi = g1
+    elif param.name == 'acer_model/q/w:0' :
+        dummy_g2_q = g2
+
     if g1 is None:
         return g2
     elif g2 is None:
         return g1
+    # elif g1 is None and g2 is None :
+    #     if param.name == 'acer_model/pi/w:0' :
+    #         return dummy_g1_pi
+    #     else :
+    #         return dummy_g2_q
     else:
         return g1 + g2
 
