@@ -17,6 +17,7 @@ def nature_cnn(unscaled_images, **conv_kwargs):
     """
     CNN from Nature paper.
     """
+    print("Nature CNN policy")
     scaled_images = tf.cast(unscaled_images, tf.float32) / 255.
     activ = tf.nn.relu
     h = activ(conv(scaled_images, 'c1', nf=32, rf=8, stride=4, init_scale=np.sqrt(2),
@@ -62,6 +63,7 @@ def mlp(num_layers=2, num_hidden=64, activation=tf.tanh, layer_norm=False):
 @register("cnn")
 def cnn(**conv_kwargs):
     def network_fn(X):
+        print("network_fn called for nature_cnn")
         return nature_cnn(X, **conv_kwargs)
     return network_fn
 
@@ -204,6 +206,7 @@ def _normalize_clip_observation(x, clip_range=[-5.0, 5.0]):
 
 
 def get_network_builder(name):
+    print("Called get_network_builder with Name : ",name)
     """
     If you want to register your own network outside models.py, you just need:
 

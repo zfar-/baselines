@@ -80,6 +80,7 @@ def fcNoisy(x, scope, nh, *, init_scale=1.0, init_bias=0.0,newbie=1.0,noise=0.0,
     #newbie= tf.placeholder(tf.int32, name="newbie")
     #print(newbie)
     #noise= tf.placeholder(tf.int32, name="noise")
+    print("FC noisy called with scope ",scope)
     with tf.variable_scope(scope):
         nin = x.get_shape()[1].value
         randomlayer=tf.random_normal([nin, nh], dtype=tf.float32)
@@ -314,8 +315,9 @@ def avg_norm(t):
     return tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.square(t), axis=-1)))
 
 def gradient_add(g1, g2, param):
+    print(" gradient_add " )
     print([g1, g2, param.name])
-    assert (not (g1 is None and g2 is None)), param.name
+    # assert (not (g1 is None and g2 is None)), param.name
     if g1 is None:
         return g2
     elif g2 is None:

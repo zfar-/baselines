@@ -33,6 +33,7 @@ class PolicyWithValue(object):
 
         """
 
+        print(" Policy with Value called ")
         self.X = observations
         self.state = tf.constant([])
         self.initial_state = None
@@ -68,10 +69,14 @@ class PolicyWithValue(object):
         self.sess = sess or tf.get_default_session()
 
         if estimate_q:
+            print("estimate  Q")
             assert isinstance(env.action_space, gym.spaces.Discrete)
-            self.q = fc(vf_latent, 'q', env.action_space.n)
+            # > action noise
+            self.q,_ = fcNoisy(vf_latent, 'q', env.action_space.n , newbie=self.newbie,noise=self.noise,sigma=self.Sigma)
+            # self.q = fc(vf_latent, 'q', env.action_space.n)
             self.vf = self.q
         else:
+            print("estimate V ")
             # > action noise 
             self.vf,_ = fcNoisy(vf_latent, 'vf', 1,newbie=self.newbie,noise=self.noise,sigma=self.Sigma)
             # self.vf = fc(vf_latent, 'vf', 1)
@@ -91,6 +96,10 @@ class PolicyWithValue(object):
         return tf.distributions.kl_divergence(X, Y)
 
     def _evaluate(self, variables, observation,Noise=0.0,Newbie=0.0,sigma=0.0, **extra_feed):
+        # print("Called _evaluate , ", variables)
+        if self.DPD not in variables : 
+            # print("DPD condition stays try")
+            variables += [self.DPD]
         sess = self.sess or tf.get_default_session()
         feed_dict = {self.X: adjust_shape(self.X, observation),
         self.noise:Noise,

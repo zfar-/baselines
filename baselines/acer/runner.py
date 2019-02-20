@@ -35,32 +35,33 @@ class Runner(AbstractEnvRunner):
         # >
 
 
-    def run(self,Sigma):
+    def run(self, Sigma):
         # enc_obs = np.split(self.obs, self.nstack, axis=3)  # so now list of obs steps
         enc_obs = np.split(self.env.stackedobs, self.env.nstack, axis=-1)
         mb_obs, mb_actions, mb_mus, mb_dones, mb_rewards, mb_next_states = [], [], [], [], [], []
         icm_testing_rewards = []
 
         # > Action noise variables
-        DPD = 0
-        actions=None 
-        values=None
-        states=None
-        # > Action noise variables
+        # DPD = 0
+        # actions=None 
+        # values=None
+        # states=None
+        # # > Action noise variables
 
 
-        for _ in range(self.nsteps):
+        for n in range(self.nsteps):
+            
             # actions, mus, states = self.model._step(self.obs, S=self.states, M=self.dones)
             
             # > action noise     
             if(n==0):
-                actions, mus, states,tmp, _ = self.model._step(self.obs,Noise=1.0,Newbie=1.0,sigma=Sigma, S=self.states, M=self.dones)
+                actions, mus, states, _ = self.model._step(self.obs,Noise=1.0,Newbie=1.0,sigma=Sigma, S=self.states, M=self.dones)
             elif(n==(self.nsteps-1)):
-                actions, mus, states,tmp, DPDarray = self.model._step(self.obs,Noise=1.0,Newbie=0.0,sigma=Sigma, S=self.states, M=self.dones)
+                actions, mus, states, DPDarray = self.model._step(self.obs,Noise=1.0,Newbie=0.0,sigma=Sigma, S=self.states, M=self.dones)
                 # print(DPDarray[0])
                 DPD=DPDarray[0]
             else:
-                actions, mus, states, tmp,_ = self.model._step(self.obs,Noise=1.0,Newbie=0.0,sigma=Sigma, S=self.states, M=self.dones)
+                actions, mus, states,_ = self.model._step(self.obs,Noise=1.0,Newbie=0.0,sigma=Sigma, S=self.states, M=self.dones)
             # > actions noise
          
 
@@ -146,7 +147,7 @@ class Runner(AbstractEnvRunner):
 
       
         # extra variable for action noise 
-        return enc_obs, mb_obs, mb_actions, mb_rewards, mb_mus, mb_dones, mb_masks, mb_next_states, icm_actions, DPD
+        return enc_obs, mb_obs, mb_actions, mb_rewards, mb_mus, mb_dones, mb_masks, mb_next_states, icm_actions , DPD
 
 
 

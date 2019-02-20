@@ -155,6 +155,8 @@ class Model(object):
         check_shape([loss_policy, loss_q, entropy], [[]] * 3)
         loss = loss_policy + q_coef * loss_q - ent_coef * entropy
 
+        
+
         if trust_region:
             g = tf.gradients(- (loss_policy - ent_coef * entropy) * nsteps * nenvs, f) #[nenvs * nsteps, nact]
             # k = tf.gradients(KL(f_pol || f), f)
@@ -163,6 +165,7 @@ class Model(object):
             adj = tf.maximum(0.0, (tf.reduce_sum(k * g, axis=-1) - delta) / (tf.reduce_sum(tf.square(k), axis=-1) + eps)) #[nenvs * nsteps]
 
             # Calculate stats (before doing adjustment) for logging.
+            print("Worked till here ")
             avg_norm_k = avg_norm(k)
             avg_norm_g = avg_norm(g)
             avg_norm_k_dot_g = tf.reduce_mean(tf.abs(k_dot_g))
@@ -172,6 +175,9 @@ class Model(object):
             grads_f = -g/(nenvs*nsteps) # These are turst region adjusted gradients wrt f ie statistics of policy pi
             grads_policy = tf.gradients(f, params, grads_f)
             grads_q = tf.gradients(loss_q * q_coef, params)
+            print(" Len of grads_policy {} , grads_q {}  , params {} ".
+                format((grads_policy), len(grads_q) , len(params)))
+            
             grads = [gradient_add(g1, g2, param) for (g1, g2, param) in zip(grads_policy, grads_q, params)]
 
             avg_norm_grads_f = avg_norm(grads_f) * (nsteps * nenvs)
@@ -189,6 +195,8 @@ class Model(object):
         #     grads = grads + icm.pred_grads_and_vars
         # # print("Final Gradeints \n ",grads)
         # > 
+
+        
 
         trainer = tf.train.RMSPropOptimizer(learning_rate=LR, decay=rprop_alpha, epsilon=rprop_epsilon)
         _opt_op = trainer.apply_gradients(grads)
@@ -258,14 +266,20 @@ class Model(object):
                 forwardLoss , InverseLoss , icmLoss , _ = icm.train_curiosity_model(obs,next_states,icm_actions)
                 td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr, train_model.noise:0.0,train_model.newbie:1.0,train_model.Sigma:0.0}
                 
+                # td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr}
+                
             else :
 
                 td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr, train_model.noise:0.0,train_model.newbie:1.0,train_model.Sigma:0.0}
+                # td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr}
+                
                 # print("off policy td map")
                 # print("td Map {} \n run_ops {}".format( td_map,run_ops ))
             if icm is None :
                 # print("ICM none td Map ")
                 td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr, train_model.noise:0.0,train_model.newbie:1.0,train_model.Sigma:0.0}
+                # td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr}
+                
 
 
             if states is not None:
@@ -285,9 +299,9 @@ class Model(object):
                 return names_ops, sess.run(run_ops, td_map)[1:]
 
 
-        def _step(observation, **kwargs):
-            print("Step is called")
-            return step_model._evaluate([step_model.action, step_model_p, step_model.state], observation, **kwargs)
+        def _step(observation, Noise=0.0,Newbie=0.0,sigma=0.0 , **kwargs):
+            # print("Step is called")
+            return step_model._evaluate([step_model.action, step_model_p, step_model.state], observation, Noise,Newbie,sigma , **kwargs)
 
 
 
@@ -305,7 +319,7 @@ class Model(object):
 
 
 class Acer():
-    def __init__(self, runner, model, buffer, log_interval, curiosity,sigma):
+    def __init__(self, runner, model, buffer, log_interval, curiosity, sigma , second_delta , dpd):
         self.runner = runner
         self.model = model
         self.curiosity = curiosity
@@ -316,11 +330,22 @@ class Acer():
         self.steps = None
 
         self.sigma = sigma 
+        self.delta = second_delta
+        self.dpd = dpd
 
-    def call(self, on_policy):
+    def call(self, on_policy,update):
         runner, model, buffer, steps = self.runner, self.model, self.buffer, self.steps
+
+        # > Adaptive action noise  
+        if update > 1:
+            cond=0
+            if self.dpd < self.delta:
+                cond=1
+            self.sigma=sigmaUpdate(condition=cond,sigma=sigma)
+        # > Adaptive action noise 
+        
         if on_policy:
-            enc_obs, obs, actions, rewards, mus, dones, masks, next_states, icm_actions, DPD = runner.run(Sigma = self.sigma)
+            enc_obs, obs, actions, rewards, mus, dones, masks, next_states, icm_actions,dpd = runner.run(self.sigma) # Here sigma for action noise
             self.episode_stats.feed(rewards, dones)
             if buffer is not None:
                 buffer.put(enc_obs, actions, rewards, mus, dones, masks)
@@ -339,6 +364,9 @@ class Acer():
         mus = mus.reshape([runner.nbatch, runner.nact])
         dones = dones.reshape([runner.nbatch])
         masks = masks.reshape([runner.batch_ob_shape[0]])
+
+        
+
 
         if self.curiosity == True and on_policy == True:
             
@@ -371,7 +399,7 @@ def sigmaUpdate( sigma,condition=0,alpha=1.01):
         return sigma*alpha
     else:
         return sigma/alpha
-# > 
+# > Adaptive action noise
 
 
 def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=0.5, ent_coef=0.01,
@@ -450,6 +478,7 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
         env = VecFrameStack(env, 1)
 
     policy = build_policy(env, network, estimate_q=True, **network_kwargs)
+    print("Policy is made in ACER")
     nenvs = env.num_envs
     ob_space = env.observation_space
     ac_space = env.action_space
@@ -458,7 +487,7 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
     # > Adaptive Action Noise 
     sigma = 0.01
     DPD=0.0
-    delta=0.01
+    second_delta=0.0001
     # > Adaptive Action Noise
 
 
@@ -491,11 +520,11 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
     else:
         buffer = None
     nbatch = nenvs*nsteps
-    acer = Acer(runner, model, buffer, log_interval, curiosity)
+    acer = Acer(runner, model, buffer, log_interval, curiosity, sigma=sigma,second_delta=second_delta, dpd =DPD)
     acer.tstart = time.time()
 
     for acer.steps in range(0, total_timesteps, nbatch): #nbatch samples, 1 on_policy call and multiple off-policy calls
-        acer.call(on_policy=True)
+        acer.call(on_policy=True, update=acer.steps)
         if replay_ratio > 0 and buffer.has_atleast(replay_start):
             n = np.random.poisson(replay_ratio)
             for _ in range(n):

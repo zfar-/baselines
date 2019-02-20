@@ -74,6 +74,9 @@ class Model(object):
         # Update parameters using loss
         # 1. Get the model parameters
         params = find_trainable_variables("a2c_model")
+        print("Params {}".format(len(params)))
+        for var in params:
+            print(var)
 
         # 2. Calculate the gradients
         grads = tf.gradients(loss, params)
@@ -321,7 +324,7 @@ def learn(
     # > Adaptive Action Noise 
     sigma = 0.01
     DPD=0.0
-    delta=0.0001
+    delta=0.01
     # > Adaptive Action Noise
 
     # Start total timer
@@ -335,6 +338,7 @@ def learn(
             cond=0
             if DPD < delta:
                 cond=1
+            # print("Cond " , cond)
             sigma=sigmaUpdate(condition=cond,sigma=sigma)
         obs, states, rewards, masks, actions, values, next_ob, DPD = runner.run(Sigma=sigma) # ,icm_rewards,cumulative_dicounted_icm = runner.run()
 
