@@ -345,7 +345,7 @@ class Acer():
         # > Adaptive action noise 
         
         if on_policy:
-            enc_obs, obs, actions, rewards, mus, dones, masks, next_states, icm_actions,dpd = runner.run(self.sigma) # Here sigma for action noise
+            enc_obs, obs, actions, rewards, mus, dones, masks, next_states, icm_actions,self.dpd = runner.run(self.sigma) # Here sigma for action noise
             self.episode_stats.feed(rewards, dones)
             if buffer is not None:
                 buffer.put(enc_obs, actions, rewards, mus, dones, masks)

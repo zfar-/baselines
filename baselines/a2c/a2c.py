@@ -85,6 +85,8 @@ class Model(object):
             grads, grad_norm = tf.clip_by_global_norm(grads, max_grad_norm)
         grads = list(zip(grads, params))
 
+        print("Gradients ",grads)
+
         if icm is not None :
 
             grads = grads + icm.pred_grads_and_vars
@@ -324,7 +326,7 @@ def learn(
     # > Adaptive Action Noise 
     sigma = 0.01
     DPD=0.0
-    delta=0.01
+    delta=0.001
     # > Adaptive Action Noise
 
     # Start total timer
