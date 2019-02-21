@@ -20,6 +20,7 @@ from baselines.common.tf_util import get_session
 from baselines.deepq.models import build_q_func
 
 from baselines.common.ICM import ICM
+from baselines.common.running_mean_std import RunningMeanStd
 
 
 
@@ -196,6 +197,11 @@ def learn(env,
 
     q_func = build_q_func(network, **network_kwargs)
 
+    if curiosity :
+            rff = RewardForwardFilter(gamma)
+            rff_rms = RunningMeanStd()
+
+
     # capture the shape outside the closure so that the env object is not serialized
     # by cloudpickle when serializing make_obs_ph
 
@@ -297,6 +303,9 @@ def learn(env,
             if curiosity:
                 # print("Curiosity reward")
                 icm_reward =  icm.calculate_intrinsic_reward( np.reshape(obs, (1,84,84,4) ), np.reshape(new_obs,(1,84,84,4) ) , np.reshape(env_action, (1,) ) )
+            else :
+                icm_reward = None
+                # rew += icm_reward
                 # print("Done" , icm_reward)
 
             # > 
@@ -306,7 +315,7 @@ def learn(env,
             # Store transition in the replay buffer.
             # print(" shape of obs {}, new_obs {} , rewards {} , dones {}  , action {} ".format(
                 # np.shape(obs) , np.shape(new_obs) , rew  , done , np.shape(env_action)) ) 
-            replay_buffer.add(obs, action, rew, new_obs, float(done))
+            replay_buffer.add(obs, action, rew, new_obs, float(done), icm_reward)
             obs = new_obs
 
             episode_rewards[-1] += rew
@@ -321,11 +330,12 @@ def learn(env,
                 if prioritized_replay:
                     # print("PrioritizedReplayBuffer True")
                     experience = replay_buffer.sample(batch_size, beta=beta_schedule.value(t))
-                    (obses_t, actions, rewards, obses_tp1, dones, weights, batch_idxes) = experience
+                    (obses_t, actions, rewards, obses_tp1, dones, icm_rewards, weights, batch_idxes) = experience
                 else:
-                    obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(batch_size)
+                    obses_t, actions, rewards, obses_tp1, dones , icm_rewards = replay_buffer.sample(batch_size)
                     weights, batch_idxes = np.ones_like(rewards), None
                 
+                print("Icm Rewards {} , normal Rewrds {} ".format(np.shape(icm_rewards) , np.shape(rewards)))
                 if curiosity:
                     forwardLoss , InverseLoss , icmLoss , _ = icm.train_curiosity_model(obses_t,obses_tp1,actions)
                     # print("Curiosity Training fwdloss {} , InverseLoss {} , icmLoss {}".format(
@@ -339,9 +349,7 @@ def learn(env,
                 # Update target network periodically.
                 update_target()
 
-            # if curiosity :
-            #     forwardLoss , InverseLoss , icmLoss , _ = icm.train_curiosity_model(obs,next_states,icm_actions)
-
+            
             mean_100ep_reward = round(np.mean(episode_rewards[-101:-1]), 1)
             num_episodes = len(episode_rewards)
             if done and print_freq is not None and len(episode_rewards) % print_freq == 0:
@@ -370,3 +378,25 @@ def learn(env,
             load_variables(model_file)
 
     return act
+
+
+class RewardForwardFilter(object):
+    def __init__(self, gamma):
+        self.rewems = None
+        self.gamma = gamma
+
+    def update(self, rews):
+        if self.rewems is None:
+            self.rewems = rews
+        else:
+            
+
+            # print("RewardForwardFilter , rews {}".format(rews))
+            self.rewems = self.rewems * self.gamma + rews
+            # print("RewardForwardFilter , self.rewems {} ".format(
+            # self.rewems) )
+        # print("RewardForwardFilter , self.rewems {} ".format(
+            # self.rewems) )
+
+        # print("RewardForwardFilter , rews {}".format(rews))
+        return self.rewems
