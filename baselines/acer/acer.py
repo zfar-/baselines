@@ -419,7 +419,7 @@ class Acer():
             # For true episode rewards, see the monitor files in the log folder.
             logger.record_tabular("mean_episode_length", self.episode_stats.mean_length())
             logger.record_tabular("mean_episode_reward", self.episode_stats.mean_reward())
-            print("Name ops ",names_ops)
+            # print("Name ops ",names_ops)
             for name, val in zip(names_ops, values_ops):
                 logger.record_tabular(name, float(val))
             logger.dump_tabular()
@@ -518,7 +518,7 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
     # > Adaptive Action Noise 
     sigma = 0.01
     DPD=0.0
-    second_delta=0.001
+    second_delta=0.0001
     # > Adaptive Action Noise
 
 
@@ -559,6 +559,6 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
         if replay_ratio > 0 and buffer.has_atleast(replay_start):
             n = np.random.poisson(replay_ratio)
             for _ in range(n):
-                acer.call(on_policy=False)  # no simulation steps in this
+                acer.call(on_policy=False, update=acer.steps)  # no simulation steps in this
 
     return model
