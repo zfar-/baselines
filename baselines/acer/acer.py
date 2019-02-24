@@ -518,7 +518,7 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
     # > Adaptive Action Noise 
     sigma = 0.01
     DPD=0.0
-    second_delta=0.001
+    second_delta=0.01
     # > Adaptive Action Noise
 
 
