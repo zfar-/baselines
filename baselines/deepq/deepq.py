@@ -19,6 +19,7 @@ from baselines.deepq.utils import ObservationInput
 from baselines.common.tf_util import get_session
 from baselines.deepq.models import build_q_func
 
+from baselines.common.mpi_moments import mpi_moments
 from baselines.common.ICM import ICM
 from baselines.common.running_mean_std import RunningMeanStd
 
@@ -303,6 +304,7 @@ def learn(env,
             if curiosity:
                 # print("Curiosity reward")
                 icm_reward =  icm.calculate_intrinsic_reward( np.reshape(obs, (1,84,84,4) ), np.reshape(new_obs,(1,84,84,4) ) , np.reshape(env_action, (1,) ) )
+                # print(float(icm_reward))
             else :
                 icm_reward = None
                 # rew += icm_reward
@@ -315,7 +317,7 @@ def learn(env,
             # Store transition in the replay buffer.
             # print(" shape of obs {}, new_obs {} , rewards {} , dones {}  , action {} ".format(
                 # np.shape(obs) , np.shape(new_obs) , rew  , done , np.shape(env_action)) ) 
-            replay_buffer.add(obs, action, rew, new_obs, float(done), icm_reward)
+            replay_buffer.add(obs, action, rew, new_obs, float(done), float(icm_reward))
             obs = new_obs
 
             episode_rewards[-1] += rew
@@ -335,11 +337,23 @@ def learn(env,
                     obses_t, actions, rewards, obses_tp1, dones , icm_rewards = replay_buffer.sample(batch_size)
                     weights, batch_idxes = np.ones_like(rewards), None
                 
-                print("Icm Rewards {} , normal Rewrds {} ".format(np.shape(icm_rewards) , np.shape(rewards)))
+                # print("Icm Rewards {} , normal Rewrds {} ".format(icm_rewards,rewards))
                 if curiosity:
+                    # print("Forward Loss 0")
                     forwardLoss , InverseLoss , icmLoss , _ = icm.train_curiosity_model(obses_t,obses_tp1,actions)
                     # print("Curiosity Training fwdloss {} , InverseLoss {} , icmLoss {}".format(
                     #     forwardLoss,InverseLoss,icmLoss ))
+                    # print("Forward loss 1")
+
+                    rffs = np.array([rff.update(rew) for rew in icm_rewards])
+                    rffs_mean, rffs_std, rffs_count = mpi_moments(rffs.ravel())
+                    rff_rms.update_from_moments(rffs_mean, rffs_std ** 2, rffs_count)
+                    rews = icm_rewards / np.sqrt(rff_rms.var)
+
+                    rewards += rews 
+                    # print("Done ")
+
+                    # rewards += 
                 td_errors = train(obses_t, actions, rewards, obses_tp1, dones, weights)
                 if prioritized_replay:
                     new_priorities = np.abs(td_errors) + prioritized_replay_eps

@@ -98,11 +98,13 @@ class PolicyWithValue(object):
     def _evaluate(self, variables, observation,Noise=0.0,Newbie=0.0,sigma=0.0, **extra_feed):
         # print("Called _evaluate , ", variables)
         try :
+            # > For ACER noise variable 
             if len(variables) > 1 and self.DPD not in variables : 
                 # print("DPD condition stays try")
                 variables += [self.DPD]
-        except :
-            pass
+            # > For ACER noise variable 
+        except:
+            pass 
         sess = self.sess or tf.get_default_session()
         feed_dict = {self.X: adjust_shape(self.X, observation),
         self.noise:Noise,
