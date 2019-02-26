@@ -260,8 +260,8 @@ class Runner(AbstractEnvRunner):
         mb_values = mb_values.flatten()
         mb_masks = mb_masks.flatten()
         
-        if self.curiosity == True :
-            mb_rews_icm = rews.flatten()
+        # if self.curiosity == True :
+            # mb_rews_icm = rews.flatten()
 
         # mb_new_updated_reward = mb_rews_icm + mb_rewards
 
