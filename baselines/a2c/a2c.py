@@ -18,6 +18,10 @@ from baselines.a2c.utils import get_mean_and_std
 from tensorflow import losses
 import numpy as np
 
+
+from random import randint
+
+
 class Model(object):
 
     """
@@ -278,9 +282,7 @@ def learn(
     # curiosity = False
 
 
-
     set_global_seeds(seed)
-
     # Get the nb of env
     nenvs = env.num_envs
     policy = build_policy(env, network, **network_kwargs)
@@ -295,6 +297,7 @@ def learn(
 
     # Instantiate the model object (that creates step_model and train_model)
     if curiosity == False :
+        print("Called Model without curiosity")
         model = Model(policy=policy, env=env, nsteps=nsteps, icm=None ,ent_coef=ent_coef, vf_coef=vf_coef,
             max_grad_norm=max_grad_norm, lr=lr, alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps, lrschedule=lrschedule)
     else :
@@ -313,6 +316,7 @@ def learn(
 
     # Instantiate the runner object
     if curiosity == False:
+        print("Called Runner with ICM")
         runner = Runner(env, model, nsteps=nsteps, curiosity=False ,icm=None, gamma=gamma)
     else :
         print("Called curiosity Runner")
@@ -325,23 +329,83 @@ def learn(
     
     # > Adaptive Action Noise 
     sigma = 0.01
-    DPD=0.0
-    delta=0.001
+    
     # > Adaptive Action Noise
 
     # Start total timer
     tstart = time.time()
 
+    # > Adaptive Controlled V2 Noise Ahmed 
+    ControllerInput = tf.placeholder(tf.float32, [None, 3], name="ControllerInput")
+    ControllerTarget = tf.placeholder(tf.float32, name="ControllerTarget")
+    l1=tf.layers.dense(inputs=ControllerInput, units=32, activation=tf.nn.relu, kernel_initializer=tf.random_normal_initializer(stddev=0.01))
+    l1=tf.nn.dropout(l1,keep_prob=0.80)
+    l2=tf.layers.dense(inputs=l1, units=32, activation=tf.nn.relu, kernel_initializer=tf.random_normal_initializer(stddev=0.01))
+    #l2=tf.nn.dropout(l2,keep_prob=0.80)
+    Deltas=tf.layers.dense(inputs=l2, units=7)
+    TopDeltaIndex=tf.argmax(Deltas,axis=1)
+    TopDeltaValue=tf.reduce_max(Deltas,axis=1) 
+    Controllerloss=tf.losses.mean_squared_error(ControllerTarget,TopDeltaValue)
+    Controllertrain_step=tf.train.AdamOptimizer(0.00001).minimize(Controllerloss)
+
+    init = tf.global_variables_initializer()
+    init_l = tf.local_variables_initializer()
+    sess = tf_util.get_session()
+    sess.run(init)
+    sess.run(init_l)
+
+    DPD=0.0
+    delta=0.001
+    PrevReward=0.0
+
+    # textTrain_file = open("/home/ahmedrashed/RR2018/OpenaiAdaptiveV2Controlled/a2cLog/Controller.txt", "w",newline='')
+    print('Total Steps: ', (total_timesteps//nbatch+1))
+
+    # > Adaptive Controlled V2 Noise Ahmed
+
+
+
+
     for update in range(1, total_timesteps//nbatch+1):
         # Get mini batch of experiences
         # print("Update step : ",update)
 
+
+        # > Controlled Adaptive v2 Noise Ahmed 
+        NormUpdate=(update-0)/((total_timesteps//nbatch+1)-0)
+        NormPrevReward=(PrevReward-0)/((600)-0)
+        ControllInputArray=np.asarray([DPD,delta,NormPrevReward]).reshape(1,3)
         if update > 1:
+            contdeltaindex=0
+            if(update>1000):
+                contdeltaindex=sess.run(TopDeltaIndex,feed_dict={ControllerInput:ControllInputArray})
+            else:
+                contdeltaindex=[randint(0, 6)]
+
+            if(update<=1000):
+                Alldeltas=sess.run(Deltas,feed_dict={ControllerInput:ControllInputArray})
+                # print('AllDeltas : ',Alldeltas , ' Shape : ',Alldeltas.shape)
+        
+            if contdeltaindex[0]==0:
+                delta=1
+            elif contdeltaindex[0]==1:
+                delta=0.1
+            elif contdeltaindex[0]==2:
+                delta=0.01
+            elif contdeltaindex[0]==3:
+                delta=0.001
+            elif contdeltaindex[0]==4:
+                delta=0.0001
+            elif contdeltaindex[0]==5:
+                delta=0.00001
+            elif contdeltaindex[0]==6:
+                delta=0.000001
             cond=0
             if DPD < delta:
                 cond=1
-            # print("Cond " , cond)
             sigma=sigmaUpdate(condition=cond,sigma=sigma)
+        # > Controlled Adaptive v2 Noise Ahmed 
+        
         obs, states, rewards, masks, actions, values, next_ob, DPD = runner.run(Sigma=sigma) # ,icm_rewards,cumulative_dicounted_icm = runner.run()
 
         # > now here we will do the reward normalization 
@@ -358,6 +422,11 @@ def learn(
 
 
         nseconds = time.time()-tstart
+
+        ContLoss,_=sess.run([Controllerloss,Controllertrain_step],feed_dict={ControllerInput:ControllInputArray,ControllerTarget:[np.sum(rewards)]})
+        # textTrain_file.write(str(ContLoss)+','+str(delta) +'\n')         
+        # textTrain_file.flush()
+        PrevReward=np.sum(rewards)
 
         # print("icm loss :" , np.mean(icm_loss))
 
@@ -380,5 +449,7 @@ def learn(
             
 
             logger.record_tabular("explained_variance", float(ev))
+            logger.record_tabular("sum rewards",  np.sum(rewards))
             logger.dump_tabular()
+    # textTrain_file.close()
     return model

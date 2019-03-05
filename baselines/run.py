@@ -15,6 +15,11 @@ from importlib import import_module
 
 from baselines.common.vec_env.vec_normalize import VecNormalize
 from baselines.common.atari_wrappers import MontezumaInfoWrapper
+import tensorflow as tf
+from baselines.common import atari_wrappers, retro_wrappers
+
+
+
 
 try:
     from mpi4py import MPI
@@ -273,4 +278,5 @@ def main(args):
     return model
 
 if __name__ == '__main__':
+
     main(sys.argv)

@@ -14,6 +14,9 @@ from functools import partial
 from baselines.common.tf_util import normc_initializer
 from mpi4py import MPI
 
+
+
+
 def sample(logits):
     noise = tf.random_uniform(tf.shape(logits))
     return tf.argmax(logits - tf.log(-tf.log(noise)), 1)
@@ -77,10 +80,12 @@ def fc(x, scope, nh, *, init_scale=1.0, init_bias=0.0):
 # > action noise fully connected 
 # > function
 def fcNoisy(x, scope, nh, *, init_scale=1.0, init_bias=0.0,newbie=1.0,noise=0.0,sigma=0.0):
+
     #newbie= tf.placeholder(tf.int32, name="newbie")
     #print(newbie)
     #noise= tf.placeholder(tf.int32, name="noise")
-    print("FC noisy called with scope ",scope)
+    print("FC noisy called with scope ",type(scope) , "  ", scope)
+    
     with tf.variable_scope(scope):
         nin = x.get_shape()[1].value
         randomlayer=tf.random_normal([nin, nh], dtype=tf.float32)
