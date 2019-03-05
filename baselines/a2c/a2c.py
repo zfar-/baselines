@@ -355,7 +355,7 @@ def learn(
     sess.run(init_l)
 
     DPD=0.0
-    delta=0.001
+    delta=0.0001
     PrevReward=0.0
 
     # textTrain_file = open("/home/ahmedrashed/RR2018/OpenaiAdaptiveV2Controlled/a2cLog/Controller.txt", "w",newline='')
