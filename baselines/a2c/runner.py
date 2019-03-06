@@ -34,7 +34,7 @@ class Runner(AbstractEnvRunner):
                 actions, values, states,tmp, _ = self.model.step(self.obs,Noise=1.0,Newbie=1.0,sigma=Sigma, S=self.states, M=self.dones)
             elif(n==(self.nsteps-1)):
                 actions, values, states,tmp, DPDarray = self.model.step(self.obs,Noise=1.0,Newbie=0.0,sigma=Sigma, S=self.states, M=self.dones)
-                print(DPDarray[0])
+                # print(DPDarray[0])
                 DPD=DPDarray[0]
             else:
                 actions, values, states, tmp,_ = self.model.step(self.obs,Noise=1.0,Newbie=0.0,sigma=Sigma, S=self.states, M=self.dones)
