@@ -1,8 +1,9 @@
 import time
 import functools
 import tensorflow as tf
-
+import datetime
 from baselines import logger
+import numpy as np
 
 from baselines.common import set_global_seeds, explained_variance
 from baselines.common import tf_util
@@ -12,15 +13,7 @@ from baselines.common.policies import build_policy
 from baselines.a2c.utils import Scheduler, find_trainable_variables
 from baselines.a2c.runner import Runner
 
-from baselines.common.ICM import ICM
-from baselines.a2c.utils import get_mean_and_std
-
 from tensorflow import losses
-import numpy as np
-
-
-from random import randint
-
 
 class Model(object):
 
@@ -36,15 +29,13 @@ class Model(object):
         save/load():
         - Save load the model
     """
-    def __init__(self, policy, env, nsteps, icm,
+    def __init__(self, policy, env, nsteps,
             ent_coef=0.01, vf_coef=0.5, max_grad_norm=0.5, lr=7e-4,
             alpha=0.99, epsilon=1e-5, total_timesteps=int(80e6), lrschedule='linear'):
 
         sess = tf_util.get_session()
         nenvs = env.num_envs
         nbatch = nenvs*nsteps
-
-        print("This is Icm in Model Init function " , type(icm))
 
 
         with tf.variable_scope('a2c_model', reuse=tf.AUTO_REUSE):
@@ -78,9 +69,6 @@ class Model(object):
         # Update parameters using loss
         # 1. Get the model parameters
         params = find_trainable_variables("a2c_model")
-        print("Params {}".format(len(params)))
-        for var in params:
-            print(var)
 
         # 2. Calculate the gradients
         grads = tf.gradients(loss, params)
@@ -88,15 +76,6 @@ class Model(object):
             # Clip the gradients (normalize)
             grads, grad_norm = tf.clip_by_global_norm(grads, max_grad_norm)
         grads = list(zip(grads, params))
-
-        print("Gradients ",grads)
-
-        if icm is not None :
-
-            grads = grads + icm.pred_grads_and_vars
-            # print("Gradients added ")
-            # print("independetly there shape were a2c : {} icm :{} and together {} ".format(np.shape(grads),np.shape(icm.pred_grads_and_vars),
-                # np.shape(grads_and_vars)))
         # zip aggregate each gradient with parameters associated
         # For instance zip(ABCD, xyza) => Ax, By, Cz, Da
 
@@ -107,90 +86,22 @@ class Model(object):
 
         lr = Scheduler(v=lr, nvalues=total_timesteps, schedule=lrschedule)
 
-        def train(obs, states, rewards, masks, actions, values , next_obs ) :
-        #, icm_rewards,cumulative_dicounted_icm): #, new_rew):
+        def train(obs, states, rewards, masks, actions, values):
             # Here we calculate advantage A(s,a) = R + yV(s') - V(s)
             # rewards = R + yV(s')
-            # print(" icm called in train function ", type(icm))
             advs = rewards - values
-
-
-
-            # print("Now the advantage ", advs )
-
-            # icm_adv = icm_rewards - values
-            # m , s = get_mean_and_std(icm_adv)
-
-            # > adv Normaliztion
-            # m , s = get_mean_and_std(advs)
-            # advs = (advs - m) / (s + 1e-7)
-
-
-
-            # advs = (icm_adv - m) / (s + 1e-7)
-
-
-            # icm_adv = (icm_adv - icm_adv.mean()) / (  + 1e-7) 
-            # print("icm advantage ", icm_adv)
-
-
-            # advs = new_rew - values
-            # print("Advantage :", advs)
-            # print("On train shapes are  ")
-            # print(" obs {} states {} rewards {} masks {} actions {} values {} ".
-                # format(np.shape(obs) , np.shape(states) , np.shape(rewards) , np.shape(masks) ,np.shape(actions) ,
-                # np.shape(values) ))
-            # print("Received Advantage {} rewards {} values {}".format(
-                # advs , rewards , values) )
-
-           
-            # print("advantage reward and values shape ")
-            # print("advs {} , rewards shape {} , values {}".format(np.shape(advs) , np.shape(rewards) , np.shape(values)))
-
             for step in range(len(obs)):
                 cur_lr = lr.value()
 
-            if icm is None :
-
-                # td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr}
-                # > action noise td_map
-                td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr,train_model.noise:0.0,train_model.newbie:1.0,train_model.Sigma:0.0}
-            
-            else :
-                # print("curiosity Td Map ")
-                # print(" obs {} , next obs {} , actions  {} ".format(np.shape(obs) , np.shape(next_obs),
-                    # np.shape(actions)))
-
-                # > action noise td_map 
-                # td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr , 
-                # icm.state_:obs, icm.next_state_ : next_obs , icm.action_ : actions}
-                # > action noise td_map
-                td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr , 
-                icm.state_:obs, icm.next_state_ : next_obs , icm.action_ : actions, train_model.noise:0.0,train_model.newbie:1.0,train_model.Sigma:0.0 }# , icm.R :rewards }
-
-
-
-            if icm is None :
-                if states is not None:
-                    td_map[train_model.S] = states
-                    td_map[train_model.M] = masks
-                
-                policy_loss, value_loss, policy_entropy, _ = sess.run(
-                    [pg_loss, vf_loss, entropy, _train],
-                    td_map
-                )
-                return policy_loss, value_loss, policy_entropy
-            else :
-                if states is not None:
-                    td_map[train_model.S] = states
-                    td_map[train_model.M] = masks
-                policy_loss, value_loss, policy_entropy,forward_loss , inverse_loss , icm_loss, _ = sess.run(
-                    [pg_loss, vf_loss, entropy, icm.forw_loss , icm.inv_loss, icm.icm_loss ,_train],
-                    td_map
-
-                )
-                return policy_loss, value_loss, policy_entropy,forward_loss , inverse_loss , icm_loss, advs
-
+            td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr,train_model.noise:0.0,train_model.newbie:1.0,train_model.Sigma:0.0}
+            if states is not None:
+                td_map[train_model.S] = states
+                td_map[train_model.M] = masks
+            policy_loss, value_loss, policy_entropy, _ = sess.run(
+                [pg_loss, vf_loss, entropy, _train],
+                td_map
+            )
+            return policy_loss, value_loss, policy_entropy
 
 
         self.train = train
@@ -203,21 +114,17 @@ class Model(object):
         self.load = functools.partial(tf_util.load_variables, sess=sess)
         tf.global_variables_initializer().run(session=sess)
 
-
-
-# > action noise sigma 
 def sigmaUpdate( sigma,condition=0,alpha=1.01):
     if condition==1:
         return sigma*alpha
     else:
         return sigma/alpha
-# > 
+
 
 def learn(
     network,
     env,
     seed=None,
-    curiosity=False,
     nsteps=5,
     total_timesteps=int(80e6),
     vf_coef=0.5,
@@ -228,7 +135,7 @@ def learn(
     epsilon=1e-5,
     alpha=0.99,
     gamma=0.99,
-    log_interval=100,
+    log_interval=5000,
     load_path=None,
     **network_kwargs):
 
@@ -278,157 +185,43 @@ def learn(
                         For instance, 'mlp' network architecture has arguments num_hidden and num_layers.
 
     '''
-    # curiosity = True
-    # curiosity = False
+
 
 
     set_global_seeds(seed)
+
     # Get the nb of env
     nenvs = env.num_envs
     policy = build_policy(env, network, **network_kwargs)
 
-    temp_ob_space = env.observation_space
-    temp_ac_space = env.action_space
-
-
-    temp_nbatch = nenvs * nsteps
-    temp_nbatch_train = temp_nbatch 
-
-
     # Instantiate the model object (that creates step_model and train_model)
-    if curiosity == False :
-        print("Called Model without curiosity")
-        model = Model(policy=policy, env=env, nsteps=nsteps, icm=None ,ent_coef=ent_coef, vf_coef=vf_coef,
-            max_grad_norm=max_grad_norm, lr=lr, alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps, lrschedule=lrschedule)
-    else :
-        print("Called curiosity model")
-        make_icm = lambda: ICM(ob_space = temp_ob_space, ac_space = temp_ac_space, max_grad_norm = max_grad_norm, beta = 0.2, icm_lr_scale = 0.1 )
-        icm = make_icm()
-
-        model = Model(policy=policy, env=env, nsteps=nsteps, icm=icm , ent_coef=ent_coef, vf_coef=vf_coef,
-            max_grad_norm=max_grad_norm, lr=lr, alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps, lrschedule=lrschedule)
-
-        
-
-
+    model = Model(policy=policy, env=env, nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef,
+        max_grad_norm=max_grad_norm, lr=lr, alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps, lrschedule=lrschedule)
     if load_path is not None:
         model.load(load_path)
 
     # Instantiate the runner object
-    if curiosity == False:
-        print("Called Runner with ICM")
-        runner = Runner(env, model, nsteps=nsteps, curiosity=False ,icm=None, gamma=gamma)
-    else :
-        print("Called curiosity Runner")
-        runner = Runner(env, model, nsteps=nsteps, curiosity=curiosity ,icm=icm, gamma=gamma)
-
-
+    runner = Runner(env, model, nsteps=nsteps, gamma=gamma)
 
     # Calculate the batch_size
     nbatch = nenvs*nsteps
-    
-    # > Adaptive Action Noise 
     sigma = 0.01
-    
-    # > Adaptive Action Noise
-
     # Start total timer
     tstart = time.time()
-
-    # > Adaptive Controlled V2 Noise Ahmed 
-    ControllerInput = tf.placeholder(tf.float32, [None, 3], name="ControllerInput")
-    ControllerTarget = tf.placeholder(tf.float32, name="ControllerTarget")
-    l1=tf.layers.dense(inputs=ControllerInput, units=32, activation=tf.nn.relu, kernel_initializer=tf.random_normal_initializer(stddev=0.01))
-    l1=tf.nn.dropout(l1,keep_prob=0.80)
-    l2=tf.layers.dense(inputs=l1, units=32, activation=tf.nn.relu, kernel_initializer=tf.random_normal_initializer(stddev=0.01))
-    #l2=tf.nn.dropout(l2,keep_prob=0.80)
-    Deltas=tf.layers.dense(inputs=l2, units=7)
-    TopDeltaIndex=tf.argmax(Deltas,axis=1)
-    TopDeltaValue=tf.reduce_max(Deltas,axis=1) 
-    Controllerloss=tf.losses.mean_squared_error(ControllerTarget,TopDeltaValue)
-    Controllertrain_step=tf.train.AdamOptimizer(0.00001).minimize(Controllerloss)
-
-    init = tf.global_variables_initializer()
-    init_l = tf.local_variables_initializer()
-    sess = tf_util.get_session()
-    sess.run(init)
-    sess.run(init_l)
-
     DPD=0.0
     delta=0.0001
-    PrevReward=0.0
-
-    # textTrain_file = open("/home/ahmedrashed/RR2018/OpenaiAdaptiveV2Controlled/a2cLog/Controller.txt", "w",newline='')
-    print('Total Steps: ', (total_timesteps//nbatch+1))
-
-    # > Adaptive Controlled V2 Noise Ahmed
-
-
-
-
     for update in range(1, total_timesteps//nbatch+1):
         # Get mini batch of experiences
-        # print("Update step : ",update)
 
-
-        # > Controlled Adaptive v2 Noise Ahmed 
-        NormUpdate=(update-0)/((total_timesteps//nbatch+1)-0)
-        NormPrevReward=(PrevReward-0)/((600)-0)
-        ControllInputArray=np.asarray([DPD,delta,NormPrevReward]).reshape(1,3)
         if update > 1:
-            contdeltaindex=0
-            if(update>1000):
-                contdeltaindex=sess.run(TopDeltaIndex,feed_dict={ControllerInput:ControllInputArray})
-            else:
-                contdeltaindex=[randint(0, 6)]
-
-            if(update<=1000):
-                Alldeltas=sess.run(Deltas,feed_dict={ControllerInput:ControllInputArray})
-                # print('AllDeltas : ',Alldeltas , ' Shape : ',Alldeltas.shape)
-        
-            if contdeltaindex[0]==0:
-                delta=1
-            elif contdeltaindex[0]==1:
-                delta=0.1
-            elif contdeltaindex[0]==2:
-                delta=0.01
-            elif contdeltaindex[0]==3:
-                delta=0.001
-            elif contdeltaindex[0]==4:
-                delta=0.0001
-            elif contdeltaindex[0]==5:
-                delta=0.00001
-            elif contdeltaindex[0]==6:
-                delta=0.000001
             cond=0
             if DPD < delta:
                 cond=1
             sigma=sigmaUpdate(condition=cond,sigma=sigma)
-        # > Controlled Adaptive v2 Noise Ahmed 
-        
-        obs, states, rewards, masks, actions, values, next_ob, DPD = runner.run(Sigma=sigma) # ,icm_rewards,cumulative_dicounted_icm = runner.run()
+        obs, states, rewards, masks, actions, values,DPD = runner.run(Sigma=sigma)
 
-        # > now here we will do the reward normalization 
-
-        if curiosity == False :
-
-           policy_loss, value_loss, policy_entropy = model.train(obs, states, rewards, masks, actions, values,next_obs=None)
-        else :
-            policy_loss, value_loss, policy_entropy,forwardLoss , inverseLoss , icm_loss , advs = model.train(obs, states, rewards, masks, actions, values , next_ob)#, icm_rewards,cumulative_dicounted_icm)
-
-            # print("Shape of ")
-            # print( "policy_loss {}, value_loss {}, policy_entropy {},forwardLoss {} , inverseLoss {}, icm_loss {}".
-                # format(np.shape(policy_loss) , np.shape(value_loss) , np.shape(policy_entropy) , np.shape(forwardLoss) , np.shape(inverseLoss), np.shape(icm_loss)))
-
-
+        policy_loss, value_loss, policy_entropy = model.train(obs, states, rewards, masks, actions, values)
         nseconds = time.time()-tstart
-
-        ContLoss,_=sess.run([Controllerloss,Controllertrain_step],feed_dict={ControllerInput:ControllInputArray,ControllerTarget:[np.sum(rewards)]})
-        # textTrain_file.write(str(ContLoss)+','+str(delta) +'\n')         
-        # textTrain_file.flush()
-        PrevReward=np.sum(rewards)
-
-        # print("icm loss :" , np.mean(icm_loss))
 
         # Calculate the fps (frame per second)
         fps = int((update*nbatch)/nseconds)
@@ -440,16 +233,13 @@ def learn(
             logger.record_tabular("total_timesteps", update*nbatch)
             logger.record_tabular("fps", fps)
             logger.record_tabular("policy_entropy", float(policy_entropy))
-            logger.record_tabular("value_loss", float(value_loss))
-            if curiosity == True :
-                logger.record_tabular("forwardLoss", float(forwardLoss))
-                # logger.record_tabular("inverseLoss", float(inverseLoss))
-                logger.record_tabular("icm Loss", float(icm_loss))
-                logger.record_tabular("Advantage" , np.mean(advs))
-            
-
             logger.record_tabular("explained_variance", float(ev))
+            logger.record_tabular("value_loss", float(value_loss))
+            logger.record_tabular("policy_loss",  float(policy_loss))
+            logger.record_tabular("Total_Loss",  float(policy_loss)+float(value_loss))
             logger.record_tabular("sum rewards",  np.sum(rewards))
             logger.dump_tabular()
-    # textTrain_file.close()
+            now = datetime.datetime.now()
+            model.save("/home/ahmedrashed/RR2018/OpenaiAdaptiveV2/a2cSave/a2cSave"+str(update))
     return model
+
