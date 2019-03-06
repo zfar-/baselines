@@ -132,9 +132,9 @@ class Runner(AbstractEnvRunner):
             self.rff_rms.update_from_moments(rffs_mean, rffs_std ** 2, rffs_count)
             rews = icm_testing_rewards / np.sqrt(self.rff_rms.var)
 
-            mb_rewards = rews + mb_rewards
+            mb_rewards = rews # + mb_rewards
             # > curiosity scaled reward being clipped 
-            mb_rewards = np.clip(mb_rewards,-constants['REWARD_CLIP'], constants['REWARD_CLIP'])
+            # mb_rewards = np.clip(mb_rewards,-constants['REWARD_CLIP'], constants['REWARD_CLIP'])
             # > curiosity scaled reward being clipped
             
 

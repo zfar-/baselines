@@ -235,6 +235,7 @@ def build_policy(env, policy_network, value_network=None,  normalize_observation
         # print("Its called here with type ", X.dtype)
 
         if normalize_observations: #  and X.dtype == tf.float32:
+            print("normalize_observations")
             encoded_x, rms = _normalize_clip_observation(tf.to_float(X))
             extra_tensors['rms'] = rms
         else:
