@@ -436,7 +436,7 @@ def sigmaUpdate( sigma,condition=0,alpha=1.01):
 def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=0.5, ent_coef=0.01,
           max_grad_norm=10, lr=7e-4, lrschedule='linear', rprop_epsilon=1e-5, rprop_alpha=0.99, gamma=0.99,
           log_interval=100, buffer_size=50000, replay_ratio=4, replay_start=10000, c=10.0,
-          trust_region=True, alpha=0.99, delta=1, load_path=None, curiosity=False, **network_kwargs):
+          trust_region=True, alpha=0.99, delta=1, load_path=None, curiosity=False, second_delta=0.001,**network_kwargs):
 
     '''
     Main entrypoint for ACER (Actor-Critic with Experience Replay) algorithm (https://arxiv.org/pdf/1611.01224.pdf)
@@ -518,7 +518,7 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
     # > Adaptive Action Noise 
     sigma = 0.01
     DPD=0.0
-    second_delta=0.01
+    # second_delta=0.01
     # > Adaptive Action Noise
 
 
