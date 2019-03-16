@@ -18,7 +18,7 @@ def conv2d(inputs, filters, kernel_size, strides, padding):
 
 
 class ICM(object):
-    def __init__(self, ob_space, ac_space, max_grad_norm, beta, icm_lr_scale):
+    def __init__(self, ob_space, ac_space, max_grad_norm, beta, icm_lr_scale, idf):
 
         sess = get_session()
 
@@ -28,6 +28,7 @@ class ICM(object):
         # input_shape = ob_space
         print("ICM state Input shape ", np.shape(input_shape) , "  ", input_shape)
         self.action_shape = 36
+        self.idf=idf
             
         # Placeholders
 
@@ -49,7 +50,8 @@ class ICM(object):
                 phi_next_state = self.feature_encoding(self.next_state_)
             
             # INVERSE MODEL
-            pred_actions_logits, pred_actions_prob = self.inverse_model(phi_state, phi_next_state)
+            if self.idf :
+                pred_actions_logits, pred_actions_prob = self.inverse_model(phi_state, phi_next_state)
             
             # FORWARD MODEL
             pred_phi_next_state = self.forward_model(action, phi_state)
@@ -62,8 +64,8 @@ class ICM(object):
         labels = tf.cast(action, tf.int32)
 
         print("prediction pred_actions_logits")
-
-        self.inv_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=pred_actions_logits, labels=labels),name="inverse_loss")
+        if self.idf :
+            self.inv_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=pred_actions_logits, labels=labels),name="inverse_loss")
 
         # Foward Loss
         # LF = 1/2 || pred_phi_next_state - phi_next_state ||
@@ -75,7 +77,10 @@ class ICM(object):
 
         # Todo predictor lr scale ?
         # ICM_LOSS = [(1 - beta) * LI + beta * LF ] * Predictor_Lr_scale
-        self.icm_loss = ((1-beta) * self.inv_loss + beta * self.forw_loss) * icm_lr_scale
+        if self.idf :
+            self.icm_loss = ((1-beta) * self.inv_loss + beta * self.forw_loss) * icm_lr_scale
+        else :
+            self.icm_loss =  self.forw_loss * icm_lr_scale
 
         ####
         # self.icm_var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
@@ -244,8 +249,12 @@ class ICM(object):
     def train_curiosity_model(self, states , next_states , actions):# , rewards):
         sess = tf.get_default_session()
         feed = {self.state_: states , self.next_state_ : next_states , self.action_ : actions }#, self.R :rewards }
+        if self.idf :
+            return sess.run((self.forw_loss, self.inv_loss, self.icm_loss, self._icm_train), feed_dict = feed)
+        else :
+            return sess.run((self.forw_loss, self.icm_loss, self._icm_train), feed_dict = feed)
+        
 
-        return sess.run((self.forw_loss, self.inv_loss, self.icm_loss, self._icm_train), feed_dict = feed)
         # pass
 
 

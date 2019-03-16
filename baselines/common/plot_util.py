@@ -149,7 +149,7 @@ def symmetric_ema(xolds, yolds, low=None, high=None, n=512, decay_steps=1., low_
 Result = namedtuple('Result', 'monitor progress dirname metadata')
 Result.__new__.__defaults__ = (None,) * len(Result._fields)
 
-def load_results(root_dir_or_dirs, enable_progress=True, enable_monitor=True, verbose=False):
+def load_results(root_dir_or_dirs, enable_progress=True, enable_monitor=True, verbose=True):
     '''
     load summaries of runs from a list of directories (including subdirectories)
     Arguments:
@@ -168,6 +168,7 @@ def load_results(root_dir_or_dirs, enable_progress=True, enable_monitor=True, ve
          - monitor - if enable_monitor is True, this field contains pandas dataframe with loaded monitor.csv file (or aggregate of all *.monitor.csv files in the directory)
          - progress - if enable_progress is True, this field contains pandas dataframe with loaded progress.csv file
     '''
+    import re
     if isinstance(root_dir_or_dirs, str):
         rootdirs = [osp.expanduser(root_dir_or_dirs)]
     else:
@@ -176,13 +177,18 @@ def load_results(root_dir_or_dirs, enable_progress=True, enable_monitor=True, ve
     for rootdir in rootdirs:
         assert osp.exists(rootdir), "%s doesn't exist"%rootdir
         for dirname, dirs, files in os.walk(rootdir):
+            print("dirname :",dirname )
             if '-proc' in dirname:
                 files[:] = []
                 continue
-            if set(['metadata.json', 'monitor.json', 'monitor.csv', 'progress.json', 'progress.csv']).intersection(files):
+            monitor_re = re.compile(r'(\d+\.)?(\d+\.)?monitor\.csv')
+            # print(" Monitor _re ::",monitor_re)
+            if set(['metadata.json', 'monitor.json', 'progress.json', 'progress.csv']).intersection(files) or \
+               any([f for f in files if monitor_re.match(f)]):  # also match monitor files like 0.1.monitor.csv
                 # used to be uncommented, which means do not go deeper than current directory if any of the data files
                 # are found
                 # dirs[:] = []
+                print("files ",files)
                 result = {'dirname' : dirname}
                 if "metadata.json" in files:
                     with open(osp.join(dirname, "metadata.json"), "r") as fh:
@@ -203,6 +209,7 @@ def load_results(root_dir_or_dirs, enable_progress=True, enable_monitor=True, ve
                 if enable_monitor:
                     try:
                         result['monitor'] = pandas.DataFrame(monitor.load_results(dirname))
+                        print("its true")
                     except monitor.LoadMonitorResultsError:
                         print('skipping %s: no monitor files'%dirname)
                     except Exception as e:
@@ -221,9 +228,12 @@ COLORS = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black', 'purple'
         'darkgreen', 'tan', 'salmon', 'gold',  'darkred', 'darkblue']
 
 
-def default_xy_fn(r):
+def default_xy_fn(r , plot_episode_length=False):
     x = np.cumsum(r.monitor.l)
-    y = smooth(r.monitor.r, radius=10)
+    if plot_episode_length :
+        y = smooth(r.monitor.l, radius=5) 
+    else :
+        y = smooth(r.monitor.r, radius=10)
     return x,y
 
 def default_split_fn(r):
@@ -246,6 +256,8 @@ def plot_results(
     legend_outside=False,
     resample=0,
     smooth_step=1.0,
+    plot_episode_length = False
+
 ):
     '''
     Plot multiple Results objects
@@ -317,7 +329,7 @@ def plot_results(
         for result in sresults:
             group = group_fn(result)
             g2c[group] += 1
-            x, y = xy_fn(result)
+            x, y = xy_fn(result , plot_episode_length)
             if x is None: x = np.arange(len(y))
             x, y = map(np.asarray, (x, y))
             if average_group:
@@ -397,5 +409,4 @@ def test_smooth():
     plt.plot(xs, yclean, label='clean', marker='x')
     plt.legend()
     plt.show()
-
 

@@ -59,13 +59,15 @@ def q_retrace(R, D, q_i, v, rho_i, nenvs, nsteps, gamma):
 class Model(object):
     def __init__(self, policy, ob_space, ac_space, nenvs, nsteps, ent_coef, q_coef, gamma, max_grad_norm, lr,
                  rprop_alpha, rprop_epsilon, total_timesteps, lrschedule,
-                 c, trust_region, alpha, delta, icm):
+                 c, trust_region, alpha, delta, icm, idf):
 
         print("\n:::ACER Model Called:::\n")
 
         sess = get_session()
         nact = ac_space.n
         nbatch = nenvs * nsteps
+
+        self.idf=idf
 
         A = tf.placeholder(tf.int32, [nbatch]) # actions
         D = tf.placeholder(tf.float32, [nbatch]) # dones
@@ -241,10 +243,18 @@ class Model(object):
             names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
                          'norm_grads']
         else :
-            run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads , 
-            icm.forw_loss , icm.inv_loss, icm.icm_loss]
-            names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
-                     'norm_grads' ,'icm.forw_loss' , 'icm.inv_loss', 'icm.icm_loss' ]
+            if self.idf :
+                run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads , 
+                icm.forw_loss , icm.inv_loss, icm.icm_loss]
+                names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
+                         'norm_grads' ,'icm.forw_loss' , 'icm.inv_loss', 'icm.icm_loss' ]
+            else :
+                run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads , 
+                icm.forw_loss , icm.icm_loss]
+                names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
+                         'norm_grads' ,'icm.forw_loss' ,  'icm.icm_loss' ]
+
+
 
         if trust_region:
             run_ops = run_ops + [norm_grads_q, norm_grads_policy, avg_norm_grads_f, avg_norm_k, avg_norm_g, avg_norm_k_dot_g,
@@ -290,7 +300,11 @@ class Model(object):
                 # td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr , 
                 #  icm.state_:obs, icm.next_state_ : next_states , icm.action_ : icm_actions}
                 #  print(" icm_next_state type {} shape {} :: icm actions type {} shape {}".format(np.shape(icm.next_states) , ))
-                forwardLoss , InverseLoss , icmLoss , _ = icm.train_curiosity_model(obs,next_states,icm_actions)
+                if self.idf :
+                    forwardLoss , InverseLoss , icmLoss , _ = icm.train_curiosity_model(obs,next_states,icm_actions)
+                else :
+                    forwardLoss , icmLoss , _ = icm.train_curiosity_model(obs,next_states,icm_actions)
+
                 td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr, train_model.noise:0.0,train_model.newbie:1.0,train_model.Sigma:0.0}
                 
                 # td_map = {train_model.X: obs, polyak_model.X: obs, A: actions, R: rewards, D: dones, MU: mus, LR: cur_lr}
@@ -317,9 +331,12 @@ class Model(object):
                 td_map[polyak_model.M] = masks
 
             if on_policy == True and icm is not None :
-                updated_ops = names_ops + ['forwardLoss' , 'InverseLoss' ,'icmLoss']
-
-                return updated_ops, sess.run(run_ops, td_map)[1:] + [forwardLoss , InverseLoss , icmLoss  ]   # strip off _train
+                if self.idf :
+                    updated_ops = names_ops + ['forwardLoss' , 'InverseLoss' ,'icmLoss']
+                    return updated_ops, sess.run(run_ops, td_map)[1:] + [forwardLoss , InverseLoss , icmLoss  ]
+                else :
+                    updated_ops = names_ops + ['forwardLoss'  ,'icmLoss']
+                    return updated_ops, sess.run(run_ops, td_map)[1:] + [forwardLoss , icmLoss  ]   # strip off _train
             if on_policy == False:
                 return names_ops, sess.run(run_ops, td_map)[1:]
             else :
@@ -436,7 +453,7 @@ def sigmaUpdate( sigma,condition=0,alpha=1.01):
 def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=0.5, ent_coef=0.01,
           max_grad_norm=10, lr=7e-4, lrschedule='linear', rprop_epsilon=1e-5, rprop_alpha=0.99, gamma=0.99,
           log_interval=100, buffer_size=50000, replay_ratio=4, replay_start=10000, c=10.0,
-          trust_region=True, alpha=0.99, delta=1, load_path=None, curiosity=False, second_delta=0.001,**network_kwargs):
+          trust_region=False, alpha=0.99, delta=1, load_path=None, curiosity=False, second_delta=0.001, idf =True , **network_kwargs):
 
     '''
     Main entrypoint for ACER (Actor-Critic with Experience Replay) algorithm (https://arxiv.org/pdf/1611.01224.pdf)
@@ -524,14 +541,14 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
 
     if curiosity :
         
-        make_icm = lambda : ICM (ob_space = ob_space , ac_space = ac_space, max_grad_norm = max_grad_norm, beta = 0.2, icm_lr_scale = 0.5 )
+        make_icm = lambda : ICM (ob_space = ob_space , ac_space = ac_space, max_grad_norm = max_grad_norm, beta = 0.2, icm_lr_scale = 0.5 , idf=idf)
         icm = make_icm()
 
         model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nenvs=nenvs, nsteps=nsteps,
                       ent_coef=ent_coef, q_coef=q_coef, gamma=gamma,
                       max_grad_norm=max_grad_norm, lr=lr, rprop_alpha=rprop_alpha, rprop_epsilon=rprop_epsilon,
                       total_timesteps=total_timesteps, lrschedule=lrschedule, c=c,
-                      trust_region=trust_region, alpha=alpha, delta=delta , icm =icm ) # >
+                      trust_region=trust_region, alpha=alpha, delta=delta , icm =icm,idf=idf ) # >
 
         runner = Runner(env=env, model=model, nsteps=nsteps, icm=icm , gamma=gamma , curiosity=curiosity)
     else :
@@ -542,7 +559,7 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
                       ent_coef=ent_coef, q_coef=q_coef, gamma=gamma,
                       max_grad_norm=max_grad_norm, lr=lr, rprop_alpha=rprop_alpha, rprop_epsilon=rprop_epsilon,
                       total_timesteps=total_timesteps, lrschedule=lrschedule, c=c,
-                      trust_region=trust_region, alpha=alpha, delta=delta , icm = icm)
+                      trust_region=trust_region, alpha=alpha, delta=delta , icm = icm, idf=None)
         runner = Runner(env=env, model=model, nsteps=nsteps , gamma=gamma ,curiosity=False ,icm = icm)
 
 
