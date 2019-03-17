@@ -233,7 +233,7 @@ def learn(
     gamma=0.99,
     log_interval=100,
     load_path=None,
-    delta=0.01,
+    delta=0.001,
     idf=True,
     **network_kwargs):
 
@@ -386,7 +386,7 @@ def learn(
                 logger.record_tabular("forwardLoss", float(forwardLoss))
                 # logger.record_tabular("inverseLoss", float(inverseLoss))
                 logger.record_tabular("icm Loss", float(icm_loss))
-                logger.record_tabular("Advantage" , np.mean(advs))
+            logger.record_tabular("Advantage" , np.mean(advs))
             
 
             logger.record_tabular("explained_variance", float(ev))
