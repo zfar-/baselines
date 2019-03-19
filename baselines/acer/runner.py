@@ -61,8 +61,8 @@ class Runner(AbstractEnvRunner):
                 actions, mus, states, DPDarray = self.model._step(self.obs,Noise=1.0,Newbie=0.0,sigma=Sigma, S=self.states, M=self.dones)
                 # print(DPDarray[0])
 
-                
-                DPD=DPDarray[random.randint(0,len(DPDarray))]
+
+                DPD=DPDarray[random.randint(0,len(DPDarray)-1)]
 
             else:
                 actions, mus, states,_ = self.model._step(self.obs,Noise=1.0,Newbie=0.0,sigma=Sigma, S=self.states, M=self.dones)
