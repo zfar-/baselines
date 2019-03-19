@@ -125,6 +125,7 @@ def build_env(args):
     seed = args.seed
 
     env_type, env_id = get_env_type(args.env)
+    print("Env Type {} , Env Id ".format(env_type, env_id))
     print("In the build_env function with alg :: ",alg)
     if env_type in {'atari', 'retro'}:
         if alg == 'deepq':

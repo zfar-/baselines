@@ -177,7 +177,7 @@ def load_results(root_dir_or_dirs, enable_progress=True, enable_monitor=True, ve
     for rootdir in rootdirs:
         assert osp.exists(rootdir), "%s doesn't exist"%rootdir
         for dirname, dirs, files in os.walk(rootdir):
-            print("dirname :",dirname )
+            # print("dirname :",dirname )
             if '-proc' in dirname:
                 files[:] = []
                 continue
@@ -188,7 +188,7 @@ def load_results(root_dir_or_dirs, enable_progress=True, enable_monitor=True, ve
                 # used to be uncommented, which means do not go deeper than current directory if any of the data files
                 # are found
                 # dirs[:] = []
-                print("files ",files)
+                # print("files ",files)
                 result = {'dirname' : dirname}
                 if "metadata.json" in files:
                     with open(osp.join(dirname, "metadata.json"), "r") as fh:

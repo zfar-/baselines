@@ -6,6 +6,7 @@ from gym import spaces
 from baselines.common.constants import constants
 from baselines.common.mpi_moments import mpi_moments
 from baselines.common.running_mean_std import RunningMeanStd
+import random
 
 class Runner(AbstractEnvRunner):
 
@@ -59,7 +60,10 @@ class Runner(AbstractEnvRunner):
             elif(n==(self.nsteps-1)):
                 actions, mus, states, DPDarray = self.model._step(self.obs,Noise=1.0,Newbie=0.0,sigma=Sigma, S=self.states, M=self.dones)
                 # print(DPDarray[0])
-                DPD=DPDarray[0]
+
+                
+                DPD=DPDarray[random.randint(0,len(DPDarray))]
+
             else:
                 actions, mus, states,_ = self.model._step(self.obs,Noise=1.0,Newbie=0.0,sigma=Sigma, S=self.states, M=self.dones)
             # > actions noise
@@ -132,7 +136,7 @@ class Runner(AbstractEnvRunner):
             self.rff_rms.update_from_moments(rffs_mean, rffs_std ** 2, rffs_count)
             rews = icm_testing_rewards / np.sqrt(self.rff_rms.var)
 
-            mb_rewards = rews # + mb_rewards
+            mb_rewards = rews + mb_rewards
             # > curiosity scaled reward being clipped 
             # mb_rewards = np.clip(mb_rewards,-constants['REWARD_CLIP'], constants['REWARD_CLIP'])
             # > curiosity scaled reward being clipped

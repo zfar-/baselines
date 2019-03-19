@@ -386,7 +386,7 @@ def learn(
                 logger.record_tabular("forwardLoss", float(forwardLoss))
                 # logger.record_tabular("inverseLoss", float(inverseLoss))
                 logger.record_tabular("icm Loss", float(icm_loss))
-            logger.record_tabular("Advantage" , np.mean(advs))
+                logger.record_tabular("Advantage" , np.mean(advs))
             
 
             logger.record_tabular("explained_variance", float(ev))

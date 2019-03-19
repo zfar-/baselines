@@ -560,7 +560,7 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
                       max_grad_norm=max_grad_norm, lr=lr, rprop_alpha=rprop_alpha, rprop_epsilon=rprop_epsilon,
                       total_timesteps=total_timesteps, lrschedule=lrschedule, c=c,
                       trust_region=trust_region, alpha=alpha, delta=delta , icm = icm, idf=None)
-        runner = Runner(env=env, model=model, nsteps=nsteps , gamma=gamma ,curiosity=False ,icm = icm)
+        runner = Runner(env=env, model=model, nsteps=nsteps , gamma=gamma ,curiosity=False ,icm = None)
 
 
     if replay_ratio > 0:
