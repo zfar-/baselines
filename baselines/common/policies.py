@@ -57,7 +57,7 @@ class PolicyWithValue(object):
         # self.pd, self.pi = self.pdtype.pdfromlatent(latent, init_scale=0.01)
         
         # > Noise pdffrom latent
-        self.pd, self.pi , self.pdNoNoise = self.pdtype.pdfromlatent(latent, init_scale=0.01,Newbie=self.newbie,Noise=self.noise,sigma=self.Sigma)
+        self.pd,  self.pdNoNoise , self.pi  = self.pdtype.pdfromlatent(latent, init_scale=0.01,Newbie=self.newbie,Noise=self.noise,sigma=self.Sigma)
         self.DPD=self.kl(tf.nn.softmax(self.pi) ,tf.nn.softmax(self.pdNoNoise)) #RAFAEL
         # > Adaptive Noise 
 

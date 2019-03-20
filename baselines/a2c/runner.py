@@ -6,6 +6,7 @@ from baselines.common.constants import constants
 from baselines.common.mpi_moments import mpi_moments
 from baselines.common.running_mean_std import RunningMeanStd
 
+import random
 
 
 
@@ -53,7 +54,7 @@ class Runner(AbstractEnvRunner):
             elif(n==(self.nsteps-1)):
                 actions, values, states,tmp, DPDarray = self.model.step(self.obs,Noise=1.0,Newbie=0.0,sigma=Sigma, S=self.states, M=self.dones)
                 # print(DPDarray[0])
-                DPD=DPDarray[0]
+                DPD=DPDarray[random.randint(0,len(DPDarray)-1)]
             else:
                 actions, values, states, tmp,_ = self.model.step(self.obs,Noise=1.0,Newbie=0.0,sigma=Sigma, S=self.states, M=self.dones)
             # > Adaptive action noise step
@@ -140,7 +141,7 @@ class Runner(AbstractEnvRunner):
 
             # mb_rewards = rews
 
-            mb_rewards =  mb_rewards + rews
+            mb_rewards =  mb_rewards +rews
 
             # now clipping the reward (-1,1)
 
