@@ -18,6 +18,13 @@ from baselines.common.atari_wrappers import MontezumaInfoWrapper
 import tensorflow as tf
 from baselines.common import atari_wrappers, retro_wrappers
 
+import retro
+
+# # > mario testing 
+# from nes_py.wrappers import BinarySpaceToDiscreteSpaceEnv
+# import gym_super_mario_bros
+# from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
+# # > mario testing
 
 
 
@@ -59,9 +66,9 @@ _game_envs['retro'] = {
 
 
 def train(args, extra_args):
-
+    # print("called get_env_type")
     env_type, env_id = get_env_type(args.env)
-    print("In the train function with env_type {} env_id {}".format(env_type , env_id))
+    # print("In the train function with env_type {} env_id {}".format(env_type , env_id))
     # print('env_type: {}'.format(env_type))
 
     total_timesteps = int(args.num_timesteps)
@@ -73,7 +80,7 @@ def train(args, extra_args):
 
 
 
-    print("Now called build_env env function with arg :: ",args)
+    # print("Now called build_env env function with arg :: ",args)
     env = build_env(args)
     if args.save_video_interval != 0:
         env = VecVideoRecorder(env, osp.join(logger.Logger.CURRENT.dir, "videos"), record_video_trigger=lambda x: x % args.save_video_interval == 0, video_length=args.save_video_length)
@@ -84,7 +91,7 @@ def train(args, extra_args):
         if alg_kwargs.get('network') is None:
             alg_kwargs['network'] = get_default_network(env_type)
 
-    print('Training {} on {}:{} with arguments \n{}'.format(args.alg, env_type, env_id, alg_kwargs))
+    # print('Training {} on {}:{} with arguments \n{}'.format(args.alg, env_type, env_id, alg_kwargs))
 
     model = learn(
         env=env,
@@ -174,12 +181,20 @@ def build_env(args):
 
 
 def get_env_type(env_id):
+    print( 'env_id {} in _game_envs.keys() {}'.format(env_id,_game_envs.keys()) )
+    print(" retro env ",_game_envs['retro'])
     if env_id in _game_envs.keys():
         env_type = env_id
         env_id = [g for g in _game_envs[env_type]][0]
+        print("\n\n Assigned env_type {} and env_id {} ".format(env_type,env_id))
+    elif env_id in _game_envs['retro'] :
+        
+        print("its here , pass")
+        pass
     else:
         env_type = None
         for g, e in _game_envs.items():
+            print("\ng {} , e {}".format(g,e))
             if env_id in e:
                 env_type = g
                 break
@@ -235,6 +250,7 @@ def parse_cmdline_kwargs(args):
 
 
 
+
 def main(args):
     # configure logger, disable logging in child MPI processes (with rank > 0)
 
@@ -277,6 +293,7 @@ def main(args):
         env.close()
 
     return model
+
 
 if __name__ == '__main__':
 

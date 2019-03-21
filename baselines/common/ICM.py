@@ -78,9 +78,9 @@ class ICM(object):
         # Todo predictor lr scale ?
         # ICM_LOSS = [(1 - beta) * LI + beta * LF ] * Predictor_Lr_scale
         if self.idf :
-            self.icm_loss = ((1-beta) * self.inv_loss + beta * self.forw_loss) * icm_lr_scale
+            self.icm_loss = ((1-beta) * self.inv_loss + beta * self.forw_loss) 
         else :
-            self.icm_loss =  self.forw_loss * icm_lr_scale
+            self.icm_loss =  self.forw_loss
 
         ####
         # self.icm_var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
@@ -110,7 +110,7 @@ class ICM(object):
 
         # print("\n\nTrainable variables \n ",icm_params)
         # # 2. Build our trainer
-        self.icm_trainer = MpiAdamOptimizer(MPI.COMM_WORLD, learning_rate=1e-4, epsilon=1e-5)
+        self.icm_trainer = MpiAdamOptimizer(MPI.COMM_WORLD, learning_rate=1e-3, epsilon=1e-5)
         # # 3. Calculate the gradients
         icm_grads_and_var = self.icm_trainer.compute_gradients(self.icm_loss, self.icm_params)
         # # t_grads_and_var = tf.gradients()
