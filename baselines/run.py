@@ -133,7 +133,7 @@ def build_env(args):
 
     env_type, env_id = get_env_type(args.env)
     print("Env Type {} , Env Id ".format(env_type, env_id))
-    print("In the build_env function with alg :: ",alg)
+    # print("In the build_env function with alg :: ",alg)
     if env_type in {'atari', 'retro'}:
         if alg == 'deepq':
             env = make_env(env_id, env_type, seed=seed, wrapper_kwargs={'frame_stack': True})
@@ -181,8 +181,8 @@ def build_env(args):
 
 
 def get_env_type(env_id):
-    print( 'env_id {} in _game_envs.keys() {}'.format(env_id,_game_envs.keys()) )
-    print(" retro env ",_game_envs['retro'])
+    # print( 'env_id {} in _game_envs.keys() {}'.format(env_id,_game_envs.keys()) )
+    # print(" retro env ",_game_envs['retro'])
     if env_id in _game_envs.keys():
         env_type = env_id
         env_id = [g for g in _game_envs[env_type]][0]
@@ -194,7 +194,7 @@ def get_env_type(env_id):
     else:
         env_type = None
         for g, e in _game_envs.items():
-            print("\ng {} , e {}".format(g,e))
+            # print("\ng {} , e {}".format(g,e))
             if env_id in e:
                 env_type = g
                 break
