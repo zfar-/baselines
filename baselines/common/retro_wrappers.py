@@ -216,13 +216,19 @@ class StartDoingRandomActionsWrapper(gym.Wrapper):
 def make_retro(*, game, state, max_episode_steps, **kwargs):
     import retro
     # env = retro.make(game, state, **kwargs)
-    from nes_py.wrappers import BinarySpaceToDiscreteSpaceEnv
-    import gym_super_mario_bros
-    from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
+    if "Mario" in game :
+        from nes_py.wrappers import BinarySpaceToDiscreteSpaceEnv
+        import gym_super_mario_bros
+        from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
 
-    env = gym_super_mario_bros.make(game)
-    env = BinarySpaceToDiscreteSpaceEnv(env, SIMPLE_MOVEMENT)
 
+        env = gym_super_mario_bros.make(game)
+        env = BinarySpaceToDiscreteSpaceEnv(env, SIMPLE_MOVEMENT)
+
+    else :
+        if state is None:
+            state = retro.State.DEFAULT
+        env = retro.make(game, state, **kwargs)
     # env =retro.make(game,'Level1-1')
     print("testing for mario")
     env = StochasticFrameSkip(env, n=4, stickprob=0.25)
