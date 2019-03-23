@@ -123,6 +123,8 @@ def random_agent_ob_mean_std(env, nsteps=10000):
     MPI.COMM_WORLD.Bcast(std, root=0)
     return mean, std
 
+
+
 def build_env(args):
 
     ncpu = multiprocessing.cpu_count()
@@ -187,10 +189,12 @@ def get_env_type(env_id):
         env_type = env_id
         env_id = [g for g in _game_envs[env_type]][0]
         print("\n\n Assigned env_type {} and env_id {} ".format(env_type,env_id))
-    elif env_id in _game_envs['retro'] :
+    elif env_id in _game_envs['retro'] or 'Mario' in env_id :
         
-        print("its here , pass")
-        pass
+        env_type = 'retro'
+        env_id = env_id
+        print("This is the one ")
+        
     else:
         env_type = None
         for g, e in _game_envs.items():
@@ -200,6 +204,7 @@ def get_env_type(env_id):
                 break
         assert env_type is not None, 'env_id {} is not recognized in env types'.format(env_id, _game_envs.keys())
 
+    # print("env_ type {} , env_id {} ".format(env_type,env_id))
     return env_type, env_id
 
 
