@@ -65,7 +65,9 @@ class CategoricalPdType(PdType):
     # > correct version of action noise
     def pdfromlatent(self, latent_vector, init_scale=1.0, init_bias=0.0,Newbie=1.0,Noise=0.0,sigma=0.0):
         pdparam,fakepdparm = fcNoisy(latent_vector, 'pi', self.ncat, init_scale=init_scale, init_bias=init_bias,newbie=Newbie,noise=Noise,sigma=sigma)
-        return self.pdfromflat(pdparam),fakepdparm, pdparam
+        # pi , pi'
+        return self.pdfromflat(fakepdparm), fakepdparm, self.pdfromflat(pdparam) ,pdparam 
+        # a_t' , a_t , pi' , pi  
 
     # > correct version of action noise
 

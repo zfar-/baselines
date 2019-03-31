@@ -95,6 +95,8 @@ def fcNoisy(x, scope, nh, *, init_scale=1.0, init_bias=0.0,newbie=1.0,noise=0.0,
         b = tf.get_variable("b", [nh], initializer=tf.constant_initializer(init_bias))
 
         randomsaved =randomsaved.assign(tf.cond(newbie < 1.0 ,lambda: randomsaved , lambda: randomlayer ))
+        print(" shape for noise : \n  x {} *  w {} +  randomsaved {} +  b {} ".
+            format(np.shape(x), np.shape(w),np.shape(randomsaved) , np.shape(b) ) )
         condrandom = tf.cond(noise < 1.0, lambda: tf.matmul(x, w)+b, lambda: tf.matmul(x, w+randomsaved*sigma*sigma)+b)
         condrandomF = tf.matmul(x, w)+b
         return condrandomF, condrandom

@@ -35,7 +35,7 @@ class Runner(AbstractEnvRunner):
         # curiosity = False
 
         # We initialize the lists that will contain the mb of experiences
-        mb_obs, mb_rewards, mb_actions, mb_values, mb_dones, mb_next_states = [],[],[],[],[],[]
+        mb_obs, mb_rewards, mb_actions, mb_actions_t ,mb_values, mb_dones, mb_next_states = [],[],[],[],[],[],[]
         mb_states = self.states
         icm_testing_rewards = []
         DPD = 0
@@ -50,19 +50,20 @@ class Runner(AbstractEnvRunner):
 
             # > Adaptive action noise step
             if(n==0):
-                actions, values, states,tmp, _ = self.model.step(self.obs,Noise=1.0,Newbie=1.0,sigma=Sigma, S=self.states, M=self.dones)
+                actions, actions_t ,values, states,tmp, tmp_, _ = self.model.step(self.obs,Noise=1.0,Newbie=1.0,sigma=Sigma, S=self.states, M=self.dones)
             elif(n==(self.nsteps-1)):
-                actions, values, states,tmp, DPDarray = self.model.step(self.obs,Noise=1.0,Newbie=0.0,sigma=Sigma, S=self.states, M=self.dones)
+                actions, actions_t ,values, states,tmp, tmp_ ,DPDarray = self.model.step(self.obs,Noise=1.0,Newbie=0.0,sigma=Sigma, S=self.states, M=self.dones)
                 # print(DPDarray[0])
                 DPD=DPDarray[random.randint(0,len(DPDarray)-1)]
             else:
-                actions, values, states, tmp,_ = self.model.step(self.obs,Noise=1.0,Newbie=0.0,sigma=Sigma, S=self.states, M=self.dones)
+                actions, actions_t ,values, states, tmp, tmp_ ,_ = self.model.step(self.obs,Noise=1.0,Newbie=0.0,sigma=Sigma, S=self.states, M=self.dones)
             # > Adaptive action noise step
 
 
             # Append the experiences
             mb_obs.append(np.copy(self.obs))
             mb_actions.append(actions)
+            mb_actions_t.append(actions_t)
             mb_values.append(values)
             mb_dones.append(self.dones)
 
@@ -77,7 +78,7 @@ class Runner(AbstractEnvRunner):
             if self.curiosity == True:
                 icm_next_states = obs
 
-                icm_rewards = self.icm.calculate_intrinsic_reward(icm_states,icm_next_states,actions)
+                icm_rewards = self.icm.calculate_intrinsic_reward(icm_states,icm_next_states,actions_t)
                 # print("shape of icm rewards ",np.shape(icm_rewards))
                 icm_testing_rewards.append(icm_rewards)
                 # icm_rewards = [icm_rewards] * len(rewards)
@@ -120,6 +121,7 @@ class Runner(AbstractEnvRunner):
             # print("Icm rewards" ,icm_testing_rewards)
         # > testing mean std of rewards 
         mb_actions = np.asarray(mb_actions, dtype=self.model.train_model.action.dtype.name).swapaxes(1, 0)
+        mb_actions_t = np.asarray(mb_actions_t, dtype=self.model.train_model.action.dtype.name).swapaxes(1, 0)
         mb_values = np.asarray(mb_values, dtype=np.float32).swapaxes(1, 0)
         mb_dones = np.asarray(mb_dones, dtype=np.bool).swapaxes(1, 0)
         mb_masks = mb_dones[:, :-1]
@@ -256,7 +258,7 @@ class Runner(AbstractEnvRunner):
 
 
         mb_actions = mb_actions.reshape(self.batch_action_shape)
-
+        mb_actions_t = mb_actions_t.reshape(self.batch_action_shape)
         mb_rewards = mb_rewards.flatten()
         mb_values = mb_values.flatten()
         mb_masks = mb_masks.flatten()
@@ -284,7 +286,7 @@ class Runner(AbstractEnvRunner):
         # print("Merged things after obs {} rewards {} actions {} masks {}".
             # format(np.shape(mb_obs) , np.shape(mb_rewards) , np.shape(mb_actions) , np.shape(mb_masks)))
 
-        return mb_obs, mb_states, mb_rewards, mb_masks, mb_actions, mb_values, mb_next_states , DPD # , mb_rews_icm, mb_new_updated_reward #, mb_new_rew
+        return mb_obs, mb_states, mb_rewards, mb_masks, mb_actions, mb_actions_t , mb_values, mb_next_states , DPD # , mb_rews_icm, mb_new_updated_reward #, mb_new_rew
 
 
 

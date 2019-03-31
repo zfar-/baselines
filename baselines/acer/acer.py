@@ -333,21 +333,21 @@ class Model(object):
             if on_policy == True and icm is not None :
                 if self.idf :
                     updated_ops = names_ops + ['forwardLoss' , 'InverseLoss' ,'icmLoss']
-                    return updated_ops, sess.run(run_ops, td_map)[1:] + [forwardLoss , InverseLoss , icmLoss  ]
+                    return updated_ops, sess.run(run_ops, td_map)[1:] + [forwardLoss , InverseLoss , icmLoss  ], rewards
                 else :
                     updated_ops = names_ops + ['forwardLoss'  ,'icmLoss']
-                    return updated_ops, sess.run(run_ops, td_map)[1:] + [forwardLoss , icmLoss  ]   # strip off _train
+                    return updated_ops, sess.run(run_ops, td_map)[1:] + [forwardLoss , icmLoss  ], rewards   # strip off _train
             if on_policy == False:
-                return names_ops, sess.run(run_ops, td_map)[1:]
+                return names_ops, sess.run(run_ops, td_map)[1:], rewards
             else :
                 # print("function that is  called when ICM is none ")
                 # print("Its this session running ")
-                return names_ops, sess.run(run_ops, td_map)[1:]
+                return names_ops, sess.run(run_ops, td_map)[1:], rewards
 
 
         def _step(observation, Noise=0.0,Newbie=0.0,sigma=0.0 , **kwargs):
             # print("Step is called")
-            return step_model._evaluate([step_model.action, step_model_p, step_model.state], observation, Noise,Newbie,sigma , **kwargs)
+            return step_model._evaluate([step_model.action, step_model.action_t ,step_model_p, step_model.state], observation, Noise,Newbie,sigma , **kwargs)
 
 
 
@@ -422,15 +422,18 @@ class Acer():
                 icm_actions = icm_actions.reshape([runner.batch_ob_shape[0]])
                 next_states = next_states.reshape(runner.batch_ob_shape)
 
-            names_ops, values_ops = model.train(obs, actions, rewards, dones, mus, model.initial_state, masks, steps , on_policy=on_policy , next_states = next_states, icm_actions=icm_actions )
+            names_ops, values_ops , rewards = model.train(obs, actions, rewards, dones, mus, model.initial_state, masks, steps , on_policy=on_policy , next_states = next_states, icm_actions=icm_actions )
 
         elif self.curiosity == False :
             # print("Objects ")
-            names_ops, values_ops = model.train(obs, actions, rewards, dones, mus, model.initial_state, masks, steps,on_policy=on_policy, next_states = None, icm_actions = None )
+            names_ops, values_ops, rewards = model.train(obs, actions, rewards, dones, mus, model.initial_state, masks, steps,on_policy=on_policy, next_states = None, icm_actions = None )
 
         if on_policy and (int(steps/runner.nbatch) % self.log_interval == 0):
             logger.record_tabular("total_timesteps", steps)
             logger.record_tabular("fps", int(steps/(time.time() - self.tstart)))
+            logger.record_tabular("sum rewards",  np.sum(rewards))
+            
+            
             # IMP: In EpisodicLife env, during training, we get done=True at each loss of life, not just at the terminal state.
             # Thus, this is mean until end of life, not end of episode.
             # For true episode rewards, see the monitor files in the log folder.

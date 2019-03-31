@@ -39,7 +39,7 @@ class Runner(AbstractEnvRunner):
     def run(self, Sigma):
         # enc_obs = np.split(self.obs, self.nstack, axis=3)  # so now list of obs steps
         enc_obs = np.split(self.env.stackedobs, self.env.nstack, axis=-1)
-        mb_obs, mb_actions, mb_mus, mb_dones, mb_rewards, mb_next_states = [], [], [], [], [], []
+        mb_obs, mb_actions, mb_actions_t , mb_mus, mb_dones, mb_rewards, mb_next_states = [],[], [], [], [], [], []
         icm_testing_rewards = []
 
         # > Action noise variables
@@ -56,21 +56,24 @@ class Runner(AbstractEnvRunner):
             
             # > action noise     
             if(n==0):
-                actions, mus, states, _ = self.model._step(self.obs,Noise=1.0,Newbie=1.0,sigma=Sigma, S=self.states, M=self.dones)
+                actions , actions_t , mus, states, _ = self.model._step(self.obs,Noise=1.0,Newbie=1.0,sigma=Sigma, S=self.states, M=self.dones)
+                # print("its here ",_)
             elif(n==(self.nsteps-1)):
-                actions, mus, states, DPDarray = self.model._step(self.obs,Noise=1.0,Newbie=0.0,sigma=Sigma, S=self.states, M=self.dones)
+                actions, actions_t ,mus, states,DPDarray = self.model._step(self.obs,Noise=1.0,Newbie=0.0,sigma=Sigma, S=self.states, M=self.dones)
+                # print("its here too ", DPDarray)
                 # print(DPDarray[0])
 
 
                 DPD=DPDarray[random.randint(0,len(DPDarray)-1)]
 
             else:
-                actions, mus, states,_ = self.model._step(self.obs,Noise=1.0,Newbie=0.0,sigma=Sigma, S=self.states, M=self.dones)
+                actions, actions_t , mus, states,_ = self.model._step(self.obs,Noise=1.0,Newbie=0.0,sigma=Sigma, S=self.states, M=self.dones)
             # > actions noise
          
 
             mb_obs.append(np.copy(self.obs))
             mb_actions.append(actions)
+            mb_actions_t.append(actions_t)
             mb_mus.append(mus)
             mb_dones.append(self.dones)
 
@@ -102,7 +105,7 @@ class Runner(AbstractEnvRunner):
         mb_dones.append(self.dones)
         mb_next_states.append(np.copy(obs))
         
-        icm_actions = mb_actions 
+        icm_actions = mb_actions_t 
 
         # >
 
@@ -120,9 +123,10 @@ class Runner(AbstractEnvRunner):
         enc_obs = np.asarray(enc_obs, dtype=self.obs_dtype).swapaxes(1, 0)
         mb_obs = np.asarray(mb_obs, dtype=self.obs_dtype).swapaxes(1, 0)
         mb_actions = np.asarray(mb_actions, dtype=self.ac_dtype).swapaxes(1, 0)
+        # mb_actions_t = np.asarray(mb_actions_t, dtype=self.ac_dtype).swapaxes(1, 0)
 
         # >
-        icm_actions.append(actions)
+        icm_actions.append(actions_t)
         icm_actions = np.asarray(icm_actions, dtype=self.ac_dtype).swapaxes(1, 0)
         
         mb_next_states = np.array(mb_next_states, dtype=self.obs_dtype).swapaxes(1,0)

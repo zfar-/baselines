@@ -104,7 +104,7 @@ class Model(object):
 
         lr = Scheduler(v=lr, nvalues=total_timesteps, schedule=lrschedule)
 
-        def train(obs, states, rewards, masks, actions, values , next_obs ) :
+        def train(obs, states, rewards, masks, actions, values , next_obs,actions_t=None ) :
         #, icm_rewards,cumulative_dicounted_icm): #, new_rew):
             # Here we calculate advantage A(s,a) = R + yV(s') - V(s)
             # rewards = R + yV(s')
@@ -134,9 +134,9 @@ class Model(object):
             # advs = new_rew - values
             # print("Advantage :", advs)
             # print("On train shapes are  ")
-            # print(" obs {} states {} rewards {} masks {} actions {} values {} ".
-                # format(np.shape(obs) , np.shape(states) , np.shape(rewards) , np.shape(masks) ,np.shape(actions) ,
-                # np.shape(values) ))
+            # print(" obs {} states {} rewards {} masks {} actions {} actions_t {} values {} ".
+                # format(np.shape(obs) , np.shape(states) , np.shape(rewards) , np.shape(masks) ,np.shape(actions),
+                 # np.shape(actions_t) , np.shape(values) ))
             # print("Received Advantage {} rewards {} values {}".format(
                 # advs , rewards , values) )
 
@@ -163,7 +163,7 @@ class Model(object):
                 # icm.state_:obs, icm.next_state_ : next_obs , icm.action_ : actions}
                 # > action noise td_map
                 td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr , 
-                icm.state_:obs, icm.next_state_ : next_obs , icm.action_ : actions, train_model.noise:0.0,train_model.newbie:1.0,train_model.Sigma:0.0 }# , icm.R :rewards }
+                icm.state_:obs, icm.next_state_ : next_obs , icm.action_ : actions_t, train_model.noise:0.0,train_model.newbie:1.0,train_model.Sigma:0.0 }# , icm.R :rewards }
 
 
 
@@ -351,7 +351,7 @@ def learn(
                 cond=1
             # print("Cond " , cond)
             sigma=sigmaUpdate(condition=cond,sigma=sigma)
-        obs, states, rewards, masks, actions, values, next_ob, DPD = runner.run(Sigma=sigma) # ,icm_rewards,cumulative_dicounted_icm = runner.run()
+        obs, states, rewards, masks, actions, actions_t , values, next_ob, DPD = runner.run(Sigma=sigma) # ,icm_rewards,cumulative_dicounted_icm = runner.run()
 
         # > now here we will do the reward normalization 
 
@@ -359,7 +359,7 @@ def learn(
 
            policy_loss, value_loss, policy_entropy = model.train(obs, states, rewards, masks, actions, values,next_obs=None)
         else :
-            policy_loss, value_loss, policy_entropy,forwardLoss , inverseLoss , icm_loss , advs = model.train(obs, states, rewards, masks, actions, values , next_ob)#, icm_rewards,cumulative_dicounted_icm)
+            policy_loss, value_loss, policy_entropy,forwardLoss , inverseLoss , icm_loss , advs = model.train(obs, states, rewards, masks, actions, values , next_ob, actions_t )#, icm_rewards,cumulative_dicounted_icm)
 
 
             # print("Shape of ")

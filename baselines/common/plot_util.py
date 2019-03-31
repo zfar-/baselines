@@ -149,7 +149,7 @@ def symmetric_ema(xolds, yolds, low=None, high=None, n=512, decay_steps=1., low_
 Result = namedtuple('Result', 'monitor progress dirname metadata')
 Result.__new__.__defaults__ = (None,) * len(Result._fields)
 
-def load_results(root_dir_or_dirs, enable_progress=True, enable_monitor=True, verbose=True):
+def load_results(root_dir_or_dirs, enable_progress=True, enable_monitor=True, verbose=False):
     '''
     load summaries of runs from a list of directories (including subdirectories)
     Arguments:
@@ -209,7 +209,7 @@ def load_results(root_dir_or_dirs, enable_progress=True, enable_monitor=True, ve
                 if enable_monitor:
                     try:
                         result['monitor'] = pandas.DataFrame(monitor.load_results(dirname))
-                        print("its true")
+                        # print("its true")
                     except monitor.LoadMonitorResultsError:
                         print('skipping %s: no monitor files'%dirname)
                     except Exception as e:
@@ -256,7 +256,8 @@ def plot_results(
     legend_outside=False,
     resample=0,
     smooth_step=1.0,
-    plot_episode_length = False
+    plot_episode_length = False,
+    fileName=None,
 
 ):
     '''
@@ -300,7 +301,7 @@ def plot_results(
                                               See docstrings for decay_steps in symmetric_ema or one_sided_ema functions.
 
     '''
-
+    
     if split_fn is None: split_fn = lambda _ : ''
     if group_fn is None: group_fn = lambda _ : ''
     sk2r = defaultdict(list) # splitkey2results
@@ -312,6 +313,7 @@ def plot_results(
     nrows = len(sk2r)
     ncols = 1
     figsize = figsize or (6, 6 * nrows)
+    figure = plt.figure()
     f, axarr = plt.subplots(nrows, ncols, sharex=False, squeeze=False, figsize=figsize)
 
     groups = list(set(group_fn(result) for result in allresults))
@@ -338,7 +340,9 @@ def plot_results(
                 if resample:
                     x, y, counts = symmetric_ema(x, y, x[0], x[-1], resample, decay_steps=smooth_step)
                 l, = ax.plot(x, y, color=COLORS[groups.index(group) % len(COLORS)])
+                # ax.savefig('tes')
                 g2l[group] = l
+
         if average_group:
             for group in sorted(groups):
                 xys = gresults[group]
@@ -373,7 +377,9 @@ def plot_results(
 
 
         # https://matplotlib.org/users/legend_guide.html
+        # figure.savefig('foo_2.pdf')
         plt.tight_layout()
+        # figure.savefig("testing.png")
         if any(g2l.keys()):
             ax.legend(
                 g2l.values(),
@@ -381,6 +387,12 @@ def plot_results(
                 loc=2 if legend_outside else None,
                 bbox_to_anchor=(1,1) if legend_outside else None)
         ax.set_title(sk)
+    # figure.savefig('foo.pdf')
+    print("What is f ",type(f))
+    # f.savefig("testing.png")
+    if fileName is not None:
+        f.savefig(fileName+".pdf")
+        print("Saved with file name {}.pdf ".format(fileName))
     return f, axarr
 
 def regression_analysis(df):

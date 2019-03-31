@@ -57,15 +57,18 @@ class PolicyWithValue(object):
         # self.pd, self.pi = self.pdtype.pdfromlatent(latent, init_scale=0.01)
         
         # > Noise pdffrom latent
-        self.pd,  self.pdNoNoise , self.pi  = self.pdtype.pdfromlatent(latent, init_scale=0.01,Newbie=self.newbie,Noise=self.noise,sigma=self.Sigma)
+        # a_t' , pi' , a_t , pi  
+        self.pd, self.pdNoNoise , self.pi_a_t ,self.pi  = self.pdtype.pdfromlatent(latent, init_scale=0.01,Newbie=self.newbie,Noise=self.noise,sigma=self.Sigma)
         self.DPD=self.kl(tf.nn.softmax(self.pi) ,tf.nn.softmax(self.pdNoNoise)) #RAFAEL
         # > Adaptive Noise 
 
         # Take an action
-        self.action = self.pd.sample()
+        self.action = self.pd.sample() # action for noise 
+        self.action_t = self.pi_a_t.sample() #  action for curosity
 
         # Calculate the neg log of our probability
-        self.neglogp = self.pd.neglogp(self.action)
+        self.neglogp = self.pd.neglogp(self.action) # probility for noise
+        self.neglogp_a_t = self.pi_a_t.neglogp(self.action_t)
         self.sess = sess or tf.get_default_session()
 
         if estimate_q:
@@ -137,10 +140,10 @@ class PolicyWithValue(object):
         (action, value estimate, next state, negative log likelihood of the action under current policy parameters) tuple
         """
 
-        a, v, state, neglogp,DPD = self._evaluate([self.action, self.vf, self.state, self.neglogp,self.DPD], observation,Noise,Newbie,sigma, **extra_feed)
+        a, a_t ,v, state, neglogp, neglogp_a_t ,DPD = self._evaluate([self.action, self.action_t ,self.vf, self.state, self.neglogp, self.neglogp_a_t ,self.DPD], observation,Noise,Newbie,sigma, **extra_feed)
         if state.size == 0:
             state = None
-        return a, v, state, neglogp,DPD
+        return a, a_t , v, state, neglogp,neglogp_a_t,DPD
 
     def value(self, ob,Noise=0.0,Newbie=0.0,sigma=0.0, *args, **kwargs):
         """
